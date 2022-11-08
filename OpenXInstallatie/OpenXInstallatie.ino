@@ -1,15 +1,20 @@
-#define BTN_PIN_1 2
-#define BTN_PIN_2 13
-#define BTN_PIN_3 12
-#define BTN_PIN_4 11
-#define BTN_PIN_5 10
-#define BTN_PIN_6 9
-#define LED_PIN_1 6
-#define LED_PIN_2 5
-#define LED_PIN_3 7
-#define LED_PIN_4 8
-#define LED_PIN_5 4
-#define LED_PIN_6 3
+#define BTN_PIN_1 18
+#define BTN_PIN_2 2
+#define BTN_PIN_3 15
+#define BTN_PIN_4 4
+#define BTN_PIN_5 19
+#define BTN_PIN_6 17
+#define BTN_PIN_7 0
+#define BTN_PIN_8 16
+
+#define LED_PIN_1 33
+#define LED_PIN_2 14
+#define LED_PIN_3 26
+#define LED_PIN_4 32
+#define LED_PIN_5 27
+#define LED_PIN_6 13
+#define LED_PIN_7 25
+#define LED_PIN_8 12
 
 long gameLength = 30000; // 30 seconds
 long idleLength = 500;
@@ -90,6 +95,8 @@ Button buttons[] = {
   Button(BTN_PIN_4, LED_PIN_4),
   Button(BTN_PIN_5, LED_PIN_5),
   Button(BTN_PIN_6, LED_PIN_6),
+  Button(BTN_PIN_7, LED_PIN_7),
+  Button(BTN_PIN_8, LED_PIN_8),
 };
   
 void setup() {
@@ -99,7 +106,6 @@ void setup() {
 
 void loop() {
   idleAnimation();
-  Serial.println(buttons[0].isPressed());
   if (buttons[0].isPressed()) runGame();
 }
 
@@ -144,11 +150,14 @@ void gameLoop() {
       // Select a new button to press
       while(true) {
       	int nextButton = random(sizeof buttons/sizeof buttons[0] - 1);
-        if (nextButton == activeButton) continue;
-        activeButton = nextButton;
-      	break;
+        if (nextButton != activeButton) {
+          Serial.println(nextButton);
+          activeButton = nextButton;
+          break;
+        }
       }
       buttons[activeButton].led->on();
+      delay(50);
     }
   	delay(15);
   }
