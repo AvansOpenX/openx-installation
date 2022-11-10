@@ -1,3 +1,6 @@
+#include <EEPROM.h>
+#include <LiquidCrystal_I2C.h>
+
 #define BTN_PIN_1 18
 #define BTN_PIN_2 2
 #define BTN_PIN_3 15
@@ -15,6 +18,14 @@
 #define LED_PIN_6 13
 #define LED_PIN_7 25
 #define LED_PIN_8 12
+
+#define PLAYCOUNT_ADDRESS 0
+#define HIGHSCORE_ADDRESS 1
+
+// set the LCD number of columns and rows and the address
+int lcdColumns = 20;
+int lcdRows = 4;
+LiquidCrystal_I2C lcd(0x27, lcdColumns, lcdRows);
 
 long gameLength = 30000; // 30 seconds
 long idleLength = 500;
@@ -101,7 +112,16 @@ Button buttons[] = {
   
 void setup() {
   Serial.begin(9600);
-  delay(1000);
+  lcd.init();
+  lcd.backlight();
+  lcd.setCursor(0, 0);
+  lcd.print("Plays: ");
+  lcd.print(EEPROM.read(PLAYCOUNT_ADDRESS));
+  lcd.setCursor(0, 1);
+  lcd.print("Highscore: ");
+  lcd.print(EEPROM.read(HIGHSCORE_ADDRESS));
+  lcd.setCursor(0, 2);
+  lcd.print("Score: 0");
 }
 
 void loop() {
@@ -126,13 +146,42 @@ void runGame() {
   for (int i=0; i<sizeof buttons/sizeof buttons[0]; i++) {
     buttons[i].led->off();
   }
+
+  // Increment playcount
+  int playCount = EEPROM.read(PLAYCOUNT_ADDRESS);
+  playCount++;
+  EEPROM.write(PLAYCOUNT_ADDRESS, playCount);
+  EEPROM.commit();
+  lcd.setCursor(7, 0);
+  lcd.print(playCount);
+
+  // Clear old score
+  lcd.setCursor(7, 2);
+  lcd.print("0      ");
+
   delay(1000);
+
   gameLoop();
+
   for (int i=0; i<sizeof buttons/sizeof buttons[0]; i++) {
     buttons[i].led->on();
   }
+  
   Serial.print("Game ended, score:");
   Serial.println(currentScore);
+  Serial.print("Playcount: ");
+  Serial.println(EEPROM.read(PLAYCOUNT_ADDRESS));
+  Serial.print("Highscore: ");
+  Serial.println(EEPROM.read(HIGHSCORE_ADDRESS));
+
+  // Save highscore
+  if (EEPROM.read(HIGHSCORE_ADDRESS) < currentScore) {
+    EEPROM.write(HIGHSCORE_ADDRESS, currentScore);
+    EEPROM.commit();
+    lcd.setCursor(11, 1);
+    lcd.print(currentScore);
+  }
+
   currentScore = 0;
   delay(2000);
 }
@@ -146,12 +195,13 @@ void gameLoop() {
     // Detect whether the correct button has been pressed
     if (buttons[activeButton].isPressed()) {
       currentScore++;
+      lcd.setCursor(7, 2);
+      lcd.print(currentScore);
       buttons[activeButton].led->off();
       // Select a new button to press
       while(true) {
       	int nextButton = random(sizeof buttons/sizeof buttons[0] - 1);
         if (nextButton != activeButton) {
-          Serial.println(nextButton);
           activeButton = nextButton;
           break;
         }
