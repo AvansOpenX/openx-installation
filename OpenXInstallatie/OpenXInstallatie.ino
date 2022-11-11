@@ -1,6 +1,8 @@
 #include <EEPROM.h>
 #include <LiquidCrystal_I2C.h>
 
+#define EEPROM_SIZE 1024
+
 #define BTN_PIN_1 18
 #define BTN_PIN_2 2
 #define BTN_PIN_3 15
@@ -112,6 +114,8 @@ Button buttons[] = {
   
 void setup() {
   Serial.begin(9600);
+  EEPROM.begin(EEPROM_SIZE);
+
   lcd.init();
   lcd.backlight();
   lcd.setCursor(0, 0);
