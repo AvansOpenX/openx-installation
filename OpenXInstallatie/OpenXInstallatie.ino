@@ -246,7 +246,7 @@ void runGame() {
 
   // Clear progress bar
   lcd.setCursor(0, 3);
-  lcd.write("                    ");
+  lcd.print("                    ");
 
   // Save highscore
   if (EEPROM.read(HIGHSCORE_ADDRESS) < currentScore) {
