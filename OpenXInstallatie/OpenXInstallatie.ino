@@ -233,14 +233,15 @@ void runGame() {
   lcd.print(playCount);
 
   // Clear old score
+  currentScore = 0;
   lcd.setCursor(7, 2);
   lcd.print("0      ");
 
-  delay(1000);
+  delay(500);
 
   gameLoop();
 
-  for (int i=0; i<sizeof buttons/sizeof buttons[0]; i++) {
+  for (int i=0; i < sizeof buttons/sizeof buttons[0]; i++) {
     buttons[i].led->on();
   }
 
@@ -255,8 +256,7 @@ void runGame() {
     lcd.setCursor(11, 1);
     lcd.print(currentScore);
   }
-
-  currentScore = 0;
+  
   delay(2000);
 }
 
@@ -274,17 +274,18 @@ void gameLoop() {
       buttons[activeButton].led->off();
       // Select a new button to press
       while(true) {
-      	int nextButton = random(sizeof buttons/sizeof buttons[0] - 1);
+      	int nextButton = random(sizeof buttons/sizeof buttons[0]);
         if (nextButton != activeButton) {
           activeButton = nextButton;
           break;
         }
       }
       buttons[activeButton].led->on();
-      delay(50);
+      delay(10);
     }
+
     updateProgressBar(millis() - startTime, gameLength, 3);
-  	delay(15);
+  	delay(5);
   }
 }
 
