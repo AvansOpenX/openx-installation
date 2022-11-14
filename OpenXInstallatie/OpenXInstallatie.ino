@@ -24,6 +24,72 @@
 #define PLAYCOUNT_ADDRESS 0
 #define HIGHSCORE_ADDRESS 1
 
+byte zero[] = {
+  B00000,
+  B00000,
+  B00000,
+  B00000,
+  B00000,
+  B00000,
+  B00000,
+  B00000
+};
+
+byte one[] = {
+  B10000,
+  B10000,
+  B10000,
+  B10000,
+  B10000,
+  B10000,
+  B10000,
+  B10000
+};
+
+byte two[] = {
+  B11000,
+  B11000,
+  B11000,
+  B11000,
+  B11000,
+  B11000,
+  B11000,
+  B11000
+};
+
+byte three[] = {
+  B11100,
+  B11100,
+  B11100,
+  B11100,
+  B11100,
+  B11100,
+  B11100,
+  B11100
+};
+
+byte four[] = {
+  B11110,
+  B11110,
+  B11110,
+  B11110,
+  B11110,
+  B11110,
+  B11110,
+  B11110
+};
+
+byte five[] = {
+  B11111,
+  B11111,
+  B11111,
+  B11111,
+  B11111,
+  B11111,
+  B11111,
+  B11111
+};
+
 // set the LCD number of columns and rows and the address
 int lcdColumns = 20;
 int lcdRows = 4;
@@ -117,7 +183,14 @@ void setup() {
   EEPROM.begin(EEPROM_SIZE);
 
   lcd.init();
+  lcd.createChar(0, zero);
+  lcd.createChar(1, one);
+  lcd.createChar(2, two);
+  lcd.createChar(3, three);
+  lcd.createChar(4, four);
+  lcd.createChar(5, five);
   lcd.backlight();
+
   lcd.setCursor(0, 0);
   lcd.print("Plays: ");
   lcd.print(EEPROM.read(PLAYCOUNT_ADDRESS));
@@ -170,13 +243,10 @@ void runGame() {
   for (int i=0; i<sizeof buttons/sizeof buttons[0]; i++) {
     buttons[i].led->on();
   }
-  
-  Serial.print("Game ended, score:");
-  Serial.println(currentScore);
-  Serial.print("Playcount: ");
-  Serial.println(EEPROM.read(PLAYCOUNT_ADDRESS));
-  Serial.print("Highscore: ");
-  Serial.println(EEPROM.read(HIGHSCORE_ADDRESS));
+
+  // Clear progress bar
+  lcd.setCursor(0, 3);
+  lcd.write("                    ");
 
   // Save highscore
   if (EEPROM.read(HIGHSCORE_ADDRESS) < currentScore) {
@@ -213,6 +283,20 @@ void gameLoop() {
       buttons[activeButton].led->on();
       delay(50);
     }
+    updateProgressBar(millis() - startTime, gameLength, 3);
   	delay(15);
   }
+}
+
+void updateProgressBar(unsigned long count, unsigned long totalCount, int lineToPrintOn) {
+  double factor = totalCount / 100.0;          
+  int percent = (count + 1) / factor;
+  int number = percent / 5;
+  int remainder = percent % 5;
+  if(number > 0) {
+    lcd.setCursor(number - 1, lineToPrintOn);
+    lcd.write(5);
+  }  
+  lcd.setCursor(number, lineToPrintOn);
+  lcd.write(remainder);   
 }
