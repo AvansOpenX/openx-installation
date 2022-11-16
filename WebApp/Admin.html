@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <link href="https://fonts.cdnfonts.com/css/resist-sans-display" rel="stylesheet">
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.1/css/all.min.css" integrity="sha512-MV7K8+y+gLIBoVD59lQIYicR65iaqukzvf/nwasF0nqhPay5w/9lJmVM2hMDcnK1OnMGCdVK+iQrJ7lzPJQd1w==" crossorigin="anonymous" />
+        <link rel="stylesheet" href="assets/main.css" />
+    </head>
+    <body>
+        <nav>
+            <h1>
+                <b>Open</b>Admin
+            </h1>
+        </nav>
+        <form>
+            <section>
+                <h1>
+                    Plant instellingen
+                </h1>
+                <hr>
+                <!-- Foreach plant -->
+                <div class="card mb-3 shadow-sm">
+                    <div class="card-header">
+                        <a class="d-flex align-items-center" data-bs-toggle="collapse" href="#plant1">
+                            <i class="fa-solid fa-chevron-right ms-1"></i>
+                            <h3 class="ms-4 mb-0 mt-2">Plant 1</h3>
+                        </a>
+                    </div>
+                    <div id="plant1" class="collapse m-4 card-body">
+                        <div class="d-flex flex-column gap-4">
+                            <div>
+                                <div class="d-flex flex-row justify-content-between align-items-center">
+                                    <h2>Grondvochtigheid</h2>
+                                    <h2>(hoger is vochtiger)</h2>
+                                </div>
+                                <div class="d-flex flex-row gap-4 align-items-center">
+                                    <input name="p1Moisture" type="number" class="rounded" value="580" />
+                                    <input type="number" class="rounded" disabled value="678" />
+                                </div>
+                            </div>
+                            <div>
+                                <div class="d-flex flex-row justify-content-between align-items-center">
+                                    <h2>Hoeveelheid licht</h2>
+                                    <h2>(hoger is intenser)</h2>
+                                </div>
+                                <div class="d-flex flex-row gap-4 align-items-center">
+                                    <input name="p1Light" type="number" class="rounded" value="1342" />
+                                    <input type="number" class="rounded" disabled value="2200" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- End foreach -->
+            </section>
+            <section>
+                <h1>Overige instellingen</h1>
+                <hr>
+                <div class="d-flex flex-column gap-4 pb-2 pt-2">
+                    <div>
+                        <h2>Meet interval</h2>
+                        <div class="d-flex flex-row gap-4 align-items-center">
+                            <input name="measurementInterval" type="number" class="rounded" value="20" />
+                            <p class="mb-0">Seconden</p>
+                        </div>
+                    </div>
+                    <div>
+                        <h2>Spelduur</h2>
+                        <div class="d-flex flex-row gap-4 align-items-center">
+                            <input name="gameDuration" type="number" class="rounded" value="30" />
+                            <p class="mb-0">Seconden</p>
+                        </div>
+                    </div>
+                    <div>
+                        <h2>Waterverbruik</h2>
+                        <div class="d-flex flex-row gap-4 align-items-center">
+                            <input name="waterUsage" type="number" class="rounded" value="0.25" />
+                            <p class="mb-0">Liter per uur</p>
+                        </div>
+                    </div>
+                    <div>
+                        <h2>Stroomverbruik</h2>
+                        <div class="d-flex flex-row gap-4 align-items-center">
+                            <input name="powerUsage" type="number" class="rounded" value="5" />
+                            <p class="mb-0">Procent per uur</p>
+                        </div>
+                    </div>
+                    <div>
+                        <h2>Data verzend interval</h2>
+                        <div class="d-flex flex-row gap-4 align-items-center">
+                            <input name="dataTransmitInterval" type="number" class="rounded" value="5" />
+                            <p class="mb-0">Minuten</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            <button id="save-button" type="submit" class="btn btn-success rounded-circle shadow">
+                <i class="fa-solid fa-check"></i>
+            </button>
+        </form>
+    </body>
+    <script>
+        [].forEach.call(document.querySelectorAll('input'), (input) => {
+            input.addEventListener('input', (e) => {
+                document.getElementById('save-button').classList.add('show');
+            });
+        });
+    </script>
+</html>
