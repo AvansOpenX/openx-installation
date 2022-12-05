@@ -66,6 +66,10 @@ nav > h1 {
     padding-top: 34px;
 }
 
+nav > button {
+    margin-right: 24px;
+}
+
 nav b {
     color: white;
 }

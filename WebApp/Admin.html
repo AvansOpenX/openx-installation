@@ -8,10 +8,13 @@
         <link rel="stylesheet" href="assets/main.css" />
     </head>
     <body>
-        <nav>
+        <nav class="d-flex justify-content-between">
             <h1>
                 <b>Open</b>Admin
             </h1>
+            <button class="btn" onclick="logout()">
+                <i class="fa-solid fa-arrow-right-from-bracket"></i>
+            </button>
         </nav>
         <form>
             <section>
@@ -106,5 +109,12 @@
                 document.getElementById('save-button').classList.add('show');
             });
         });
+
+        const logout = () => {
+            let xhr = new XMLHttpRequest();
+            xhr.open("GET", "/logout", true);
+            xhr.send();
+            setTimeout(function(){ window.open("/logged-out","_self"); }, 500);
+        }
     </script>
 </html>
