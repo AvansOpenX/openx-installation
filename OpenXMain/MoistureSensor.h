@@ -6,13 +6,17 @@
 class MoistureSensor {
   private:
     byte pin;
-    byte index;    
+    byte index;
+    int limit;
+    int airValue;
+    int waterValue;
 
   public:
-    MoistureSensor(byte pin, byte index);
+    MoistureSensor(byte index, byte pin);
 
     void init();
     int getLevel();
+    int getComparedValue();
 }
 
 #endif

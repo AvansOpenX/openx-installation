@@ -6,13 +6,15 @@ PlantLamp::PlantLamp(byte pin) {
 }
   
 void PlantLamp::init() {
-
+  pinMode(pin, OUTPUT);
 }
 
 void PlantLamp::on() {
-
+  digitalWrite(pin, HIGH);
+  state = true;
 }
 
 void PlantLamp::off() {
-
+  digitalWrite(pin, LOW);
+  state = false;
 }
