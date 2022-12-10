@@ -1,6 +1,6 @@
 #include "Button.h"
 
-Button::Button(byte pin, Adafruit_MCP23X17 mcp) {
+Button::Button(byte pin, Adafruit_MCP23X17 &mcp) {
   this->pin = pin;
   this->mcp = mcp;
   init();
@@ -11,5 +11,5 @@ void Button::init() {
 }
 
 bool Button::isPressed() {
-  return mcp1.digitalRead(0);
+  return mcp.digitalRead(0);
 }

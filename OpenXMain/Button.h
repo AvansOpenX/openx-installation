@@ -7,13 +7,13 @@
 class Button {
   private:
     byte pin;
-    Adafruit_MCP23X17 *mcp;
+    Adafruit_MCP23X17 mcp;
   
   public: 
-    Button(byte pin, Adafruit_MCP23X17 mcp);
+    Button(byte pin, Adafruit_MCP23X17 &mcp);
 
     void init();
     bool isPressed();
-}
+};
 
 #endif

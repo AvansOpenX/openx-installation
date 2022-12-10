@@ -12,11 +12,11 @@ class MoistureSensor {
     int waterValue;
 
   public:
-    MoistureSensor(byte index, byte pin);
+    MoistureSensor(byte pin);
 
-    void init();
+    void init(byte index);
     int getLevel();
-    int getComparedValue();
-}
+    int getOffset();
+};
 
 #endif

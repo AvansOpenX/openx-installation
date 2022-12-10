@@ -15,6 +15,6 @@ class Battery {
     int getLevel();
     void fill();
     void drain();
-}
+};
 
 #endif

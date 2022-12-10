@@ -1,12 +1,11 @@
 #include "MoistureSensor.h"
 
-MoistureSensor::MoistureSensor(byte pin, byte index) {
+MoistureSensor::MoistureSensor(byte pin) {
   this->pin = pin;
-  this->index = index;
-  init();
 }
 
-void MoistureSensor::init() {
+void MoistureSensor::init(byte index) {
+  this->index = index;
   // TODO: Retrieve and set limit from storage
   // TODO: Retrieve and set airvalue from storage
   // TODO: Retrieve and set watervalue from storage
@@ -14,12 +13,12 @@ void MoistureSensor::init() {
 }
 
 int MoistureSensor::getLevel() {
-  measurement = analogRead(pin);
+  int measurement = analogRead(pin);
   // Return percentage based on the calibration values
   return map(measurement, airValue, waterValue, 0, 100);
 }
 
-int MoistureSensor::getComparedValue() {
+int MoistureSensor::getOffset() {
   // Return value should be as close to 0 as possible, negative value means that it needs water
   return getLevel() - limit;
 }
