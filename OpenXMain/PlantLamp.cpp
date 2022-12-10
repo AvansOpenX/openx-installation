@@ -1,20 +1,19 @@
 #include "PlantLamp.h"
 
-PlantLamp::PlantLamp(byte pin) {
+PlantLamp::PlantLamp(byte pin, Adafruit_MCP23X17 mcp) {
   this->pin = pin;
+  this->mcp = mcp;
   init();
 }
   
 void PlantLamp::init() {
-  pinMode(pin, OUTPUT);
+  
 }
 
 void PlantLamp::on() {
-  digitalWrite(pin, HIGH);
-  state = true;
+
 }
 
 void PlantLamp::off() {
-  digitalWrite(pin, LOW);
-  state = false;
+  
 }

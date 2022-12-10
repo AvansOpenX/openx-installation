@@ -2,16 +2,16 @@
 
 WaterValve::WaterValve(byte pin) {
   this->pin = pin;
-  init();
 }
 
-void WaterValve::init() {
+void WaterValve::init(byte index) {
+  this->index = index;
   servo.attach(pin);
 }
 
 void WaterValve::open(byte percentage) {
   // Remap the passed percentage to a value between the min and max values
-  state = map(percentage, 0, 0, 180);
+  state = map(percentage, 0, 100, 0, 180);
   servo.write(state);
 }
 

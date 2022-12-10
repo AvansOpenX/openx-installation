@@ -1,18 +1,18 @@
 #include "Plant.h"
 
-Plant::Plant(byte index, MoistureSensor moistureSensor, WaterValve waterValve, PlantLamp plantLamp) {
+Plant::Plant(byte index, MoistureSensor *moistureSensor, WaterValve *waterValve, PlantLamp *plantLamp) {
   this->moistureSensor = moistureSensor;
   this->waterValve = waterValve;
-  this->lamp = plantLamp;
+  this->plantLamp = plantLamp;
   init(index);
 }
 
 void Plant::init(byte index) {
   moistureSensor->init(index);
   waterValve->init(index);
-  lamp->init(index);
+  plantLamp->init();
 }
 
 bool Plant::needsWater() {
-  return moistureSensor->getComparedValue() < 0;
+  return moistureSensor->getOffset() < 0;
 }
