@@ -7,7 +7,7 @@
 #include "PlantLamp.h"
 #include "Plant.h"
 #include "DHT.h"
-#include <EEPROM.h>
+#include <Preferences.h>
 // Potential long-term issue https://github.com/adafruit/Adafruit-MCP23017-Arduino-Library
 #include <Adafruit_MCP23X17.h>
 
@@ -27,15 +27,6 @@
 #define NUMBER_OF_BUTTONS 12
 #define DHTPIN 5
 #define DHTTYPE DHT22
-// EEPROM addresses
-#define EEPROM_SIZE 23  // Number of necessary bytes
-// TODO: Write and read settings from EEPROM
-// #define GAME_DURATION_ADDRESS 0 // Value stored in seconds
-// #define BROADCAST_INTERVAL_ADDRESS 1 // Value stored in minutes, minimum of 2 seconds due to DHT22 sampling period limits
-// #define MEASUREMENT_INTERVAL_ADDRESS 2 // Value stored in seconds
-// #define HIGHSCORE_ADDRESS 3
-// byte moistureAddresses[NUMBER_OF_PLANTS][3] = {{0, 1, 2}, {3, 4, 5}, {6, 7, 8}, {9, 10, 11}, {12, 13, 14}};
-// byte valveAddresses[NUMBER_OF_PLANTS] = {15, 16, 17, 18, 19};
 
 const byte MOISTURE_SENSOR_PINS[] {32, 35, 34, 39, 36};
 const byte WATER_VALVE_PINS[] {12, 14, 27, 26, 25};
@@ -44,14 +35,11 @@ const byte GAME_BUTTON_PINS[] {0, 13, 1, 12, 2, 11, 3, 10, 4, 9, 5, 8}; // mcp1
 const byte RESERVOIR_SENSOR_PINS[] {6, 14, 7, 15}; // mcp2
 
 // Global objects
+Preferences prefs;
 DHT dht(DHTPIN, DHTTYPE);
 Adafruit_MCP23X17 mcp1;
 Adafruit_MCP23X17 mcp2;
-
 // TODO: Initialize battery and screen objects
-// Battery battery;
-// Screen screen;
-
 Reservoir *reservoir;
 Button *startButton;
 Button *modeButton;
@@ -62,10 +50,23 @@ MoistureSensor *moistureSensors[NUMBER_OF_PLANTS];
 void setup() {
   Serial.begin(9600);
   dht.begin();
-  EEPROM.begin(EEPROM_SIZE);
   mcp1.begin_I2C(MCP_1_ADDRESS);
   mcp2.begin_I2C(MCP_2_ADDRESS);
 
+  // Default values
+  // prefs.begin("app", false);
+  // prefs.putShort("gameDuration", 30); // Value in seconds
+  // prefs.putShort("tInterval", 5); // Value in minutes
+  // prefs.putShort("mInterval", 5); // Value in seconds
+  // prefs.putShort("highscore", 862); // Highest score from playing the button game
+  // prefs.putShort("rValveFlow", 20); // Percentage that the reservoir valve opens at an interval
+  // prefs.putShort("rPumpFlow", 20); // Percentage (of duration) that the pump is on at an interval
+  // for (byte i = 0; i < NUMBER_OF_PLANTS; i++) {
+  //   prefs.putShort("moistureLimit" + i, 300 + i); // Values at which each plant should get water
+  //   prefs.putShort("valveFlow" + i, 20 + i); // Percentages that the water valves open while watering
+  // }
+  // prefs.end();
+  
   // IO Expanders need to be initialized before the reservoir
   reservoir = new Reservoir(RESERVOIR_SENSOR_PINS, RESERVOIR_VALVE_PIN, RESERVOIR_PUMP_PIN, RESERVOIR_LED_PIN, mcp2);
 
@@ -88,7 +89,21 @@ void setup() {
 }
 
 void loop() {
+  prefs.begin("app", false);
+  Serial.println(prefs.getShort("gameDuration"));
+  Serial.println(prefs.getShort("tInterval"));
+  Serial.println(prefs.getShort("mInterval"));
+  Serial.println(prefs.getShort("highscore"));
+  Serial.println(prefs.getShort("rValveFlow"));
+  Serial.println(prefs.getShort("rPumpFlow"));
+  for (byte i = 0; i < NUMBER_OF_PLANTS; i++) {
+    Serial.println(prefs.getShort("moistureLimit" + i));
+    Serial.println(prefs.getShort("valveFlow" + i));
+  }
+  prefs.end();
 
+  Serial.println("");
+  delay(3000);
 }
 
 void shareData() {
