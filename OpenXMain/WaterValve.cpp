@@ -1,7 +1,8 @@
 #include "WaterValve.h"
 
-WaterValve::WaterValve(byte pin) {
+WaterValve::WaterValve(byte pin, Preferences &prefs) {
   this->pin = pin;
+  this->prefs = prefs;
 }
 
 void WaterValve::init(byte index) {
@@ -9,9 +10,10 @@ void WaterValve::init(byte index) {
   servo.attach(pin);
 }
 
-void WaterValve::open(byte percentage) {
+void WaterValve::open() {
   // Remap the passed percentage to a value between the min and max values
-  state = map(percentage, 0, 100, 0, 180);
+  // TODO: set actual maximum value (now 180)
+  state = map(prefs.getShort("valveFlow" + index), 0, 100, 0, 180);
   servo.write(state);
 }
 

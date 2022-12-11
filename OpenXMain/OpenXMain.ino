@@ -52,30 +52,28 @@ void setup() {
   dht.begin();
   mcp1.begin_I2C(MCP_1_ADDRESS);
   mcp2.begin_I2C(MCP_2_ADDRESS);
+  prefs.begin("app", false);
 
-  // Default values
-  // prefs.begin("app", false);
+  // Set default values, enable this code block if the sketch is flashed to a new board
   // prefs.putShort("gameDuration", 30); // Value in seconds
   // prefs.putShort("tInterval", 5); // Value in minutes
   // prefs.putShort("mInterval", 5); // Value in seconds
   // prefs.putShort("highscore", 862); // Highest score from playing the button game
   // prefs.putShort("rValveFlow", 20); // Percentage that the reservoir valve opens at an interval
-  // prefs.putShort("rPumpFlow", 20); // Percentage (of duration) that the pump is on at an interval
   // for (byte i = 0; i < NUMBER_OF_PLANTS; i++) {
   //   prefs.putShort("moistureLimit" + i, 300 + i); // Values at which each plant should get water
   //   prefs.putShort("valveFlow" + i, 20 + i); // Percentages that the water valves open while watering
   // }
-  // prefs.end();
   
   // IO Expanders need to be initialized before the reservoir
-  reservoir = new Reservoir(RESERVOIR_SENSOR_PINS, RESERVOIR_VALVE_PIN, RESERVOIR_PUMP_PIN, RESERVOIR_LED_PIN, mcp2);
+  reservoir = new Reservoir(RESERVOIR_SENSOR_PINS, RESERVOIR_VALVE_PIN, RESERVOIR_PUMP_PIN, RESERVOIR_LED_PIN, mcp2, prefs);
 
   // EEPROM needs to be initialized before the moisture sensors and valves
   for (byte i = 0; i < NUMBER_OF_PLANTS; i++) {
     // Create plant dependencies
     PlantLamp *plantLamp = new PlantLamp(LAMP_PINS[i], mcp2);
-    WaterValve *waterValve = new WaterValve(WATER_VALVE_PINS[i]);
-    moistureSensors[i] = new MoistureSensor(MOISTURE_SENSOR_PINS[i]);
+    WaterValve *waterValve = new WaterValve(WATER_VALVE_PINS[i], prefs);
+    moistureSensors[i] = new MoistureSensor(MOISTURE_SENSOR_PINS[i], prefs);
     // Create the plant object and save it in the plants array
     plants[i] = new Plant(i, moistureSensors[i], waterValve, plantLamp);
   }
@@ -89,35 +87,23 @@ void setup() {
 }
 
 void loop() {
-  prefs.begin("app", false);
-  Serial.println(prefs.getShort("gameDuration"));
-  Serial.println(prefs.getShort("tInterval"));
-  Serial.println(prefs.getShort("mInterval"));
-  Serial.println(prefs.getShort("highscore"));
-  Serial.println(prefs.getShort("rValveFlow"));
-  Serial.println(prefs.getShort("rPumpFlow"));
-  for (byte i = 0; i < NUMBER_OF_PLANTS; i++) {
-    Serial.println(prefs.getShort("moistureLimit" + i));
-    Serial.println(prefs.getShort("valveFlow" + i));
-  }
-  prefs.end();
+  // Serial.println(prefs.getShort("gameDuration"));
+  // Serial.println(prefs.getShort("mInterval"));
+  // Serial.println(prefs.getShort("highscore"));
 
-  Serial.println("");
   delay(3000);
+  shareData();
 }
 
 void shareData() {
   unsigned static long previousBroadcast = millis();
-  if (millis() - previousBroadcast >= 5 * 60000) {
+  if (millis() - previousBroadcast >= prefs.getShort("tInterval") * 60000) {
     previousBroadcast = millis();
     // Gather data to be shared
     float humidity = dht.readHumidity();
     float temperature = dht.readTemperature();
     // TODO: measure light intensity
-    int soilMoistureOffsets[NUMBER_OF_PLANTS];
-    for (byte i = 0; i < NUMBER_OF_PLANTS; i++) {
-      // soilMoistureOffsets[i] = moistureSensors[i].getOffset();
-    }
+    // TODO: get plant values: moisture, lamp state    
     // TODO: Send the above values paired with the highscore and the playcount to UDP
   }
 }

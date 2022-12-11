@@ -1,14 +1,15 @@
 #include "MoistureSensor.h"
 
-MoistureSensor::MoistureSensor(byte pin) {
+MoistureSensor::MoistureSensor(byte pin, Preferences &prefs) {
   this->pin = pin;
+  this->prefs = prefs;
+  // TODO: calibrate moisture sensors (air and water values)
+  this->airValue = 100;
+  this->waterValue = 800;
 }
 
 void MoistureSensor::init(byte index) {
   this->index = index;
-  // TODO: Retrieve and set limit from storage
-  // TODO: Retrieve and set airvalue from storage
-  // TODO: Retrieve and set watervalue from storage
   pinMode(pin, INPUT);
 }
 
@@ -20,5 +21,5 @@ int MoistureSensor::getLevel() {
 
 int MoistureSensor::getOffset() {
   // Return value should be as close to 0 as possible, negative value means that it needs water
-  return getLevel() - limit;
+  return getLevel() - prefs.getShort("moistureLimit" + index);
 }

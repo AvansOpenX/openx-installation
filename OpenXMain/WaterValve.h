@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include <ESP32Servo.h>
+#include <Preferences.h>
 
 class WaterValve {
   private:
@@ -10,12 +11,13 @@ class WaterValve {
     byte index;
     byte state;
     Servo servo;
+    Preferences prefs;
 
   public:
-    WaterValve(byte pin);
+    WaterValve(byte pin, Preferences &prefs);
 
     void init(byte index);
-    void open(byte percentage);
+    void open();
     void close();
 };
 

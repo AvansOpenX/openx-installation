@@ -7,12 +7,12 @@
 class PlantLamp {
   private:
     byte pin;
-    bool state;
     Adafruit_MCP23X17 mcp;
 
   public:
-    PlantLamp(byte pin, Adafruit_MCP23X17 mcp);
-      
+    PlantLamp(byte pin, Adafruit_MCP23X17 &mcp);
+    
+    bool state;
     void init();
     void on();
     void off();

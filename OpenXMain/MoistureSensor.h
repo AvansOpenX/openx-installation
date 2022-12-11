@@ -2,17 +2,18 @@
 #define C_M_SENSOR
 
 #include <Arduino.h>
+#include <Preferences.h>
 
 class MoistureSensor {
   private:
     byte pin;
     byte index;
-    int limit;
     int airValue;
     int waterValue;
+    Preferences prefs;
 
   public:
-    MoistureSensor(byte pin);
+    MoistureSensor(byte pin, Preferences &prefs);
 
     void init(byte index);
     int getLevel();
