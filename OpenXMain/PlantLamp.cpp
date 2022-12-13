@@ -7,13 +7,13 @@ PlantLamp::PlantLamp(byte pin, Adafruit_MCP23X17 &mcp) {
 }
   
 void PlantLamp::init() {
-  
+  off();
 }
 
 void PlantLamp::on() {
-
+  state = true;
 }
 
 void PlantLamp::off() {
-  
+  state = false;
 }
