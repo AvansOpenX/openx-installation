@@ -7,6 +7,8 @@
 #include "PlantLamp.h"
 #include "Plant.h"
 #include "DHT.h"
+#include <WiFi.h>
+#include <HTTPClient.h>
 #include <Preferences.h>
 // Potential long-term issue https://github.com/adafruit/Adafruit-MCP23017-Arduino-Library
 #include <Adafruit_MCP23X17.h>
@@ -34,6 +36,10 @@ const byte LAMP_PINS[] {8, 9, 10, 11, 12}; // mcp2
 const byte GAME_BUTTON_PINS[] {0, 13, 1, 12, 2, 11, 3, 10, 4, 9, 5, 8}; // mcp1
 const byte RESERVOIR_SENSOR_PINS[] {6, 14, 7, 15}; // mcp2
 
+// TODO: Store SSID and password in prefs
+const char* ssid = "The Promised LAN";
+const char* password =  "password";
+
 // Global objects
 Preferences prefs;
 DHT dht(DHTPIN, DHTTYPE);
@@ -53,6 +59,7 @@ void setup() {
   mcp1.begin_I2C(MCP_1_ADDRESS);
   mcp2.begin_I2C(MCP_2_ADDRESS);
   prefs.begin("app", false);
+  WiFi.begin(ssid, password);
 
   // Set default values, enable this code block if the sketch is flashed to a new board
   // prefs.putShort("gameDuration", 30); // Value in seconds
@@ -98,6 +105,8 @@ void loop() {
 void shareData() {
   unsigned static long previousBroadcast = millis();
   if (millis() - previousBroadcast >= prefs.getShort("tInterval") * 60000) {
+    // Exit the function if a WiFi connection is not established
+    if (WiFi.status() != WL_CONNECTED) return;
     previousBroadcast = millis();
     // Gather data to be shared
     float humidity = dht.readHumidity();
@@ -105,5 +114,7 @@ void shareData() {
     // TODO: measure light intensity
     // TODO: get plant values: moisture, lamp state    
     // TODO: Send the above values paired with the highscore and the playcount to UDP
+    HTTPClient http;
+    http.begin("http://jsonplaceholder.typicode.com/posts");
   }
 }
