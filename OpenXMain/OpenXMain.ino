@@ -29,6 +29,9 @@
 #define NUMBER_OF_BUTTONS 12
 #define DHTPIN 5
 #define DHTTYPE DHT22
+#define UDP_NAME "OpenXMain"
+#define UDP_P_NAME "OpenXPlant"
+#define UDP_G_NAME "OpenXGame"
 
 const byte MOISTURE_SENSOR_PINS[] {32, 35, 34, 39, 36};
 const byte WATER_VALVE_PINS[] {12, 14, 27, 26, 25};
@@ -37,8 +40,10 @@ const byte GAME_BUTTON_PINS[] {0, 13, 1, 12, 2, 11, 3, 10, 4, 9, 5, 8}; // mcp1
 const byte RESERVOIR_SENSOR_PINS[] {6, 14, 7, 15}; // mcp2
 
 // TODO: Store SSID and password in prefs
-const char* ssid = "The Promised LAN";
-const char* password =  "password";
+// const char* ssid = "The Promised LAN";
+// const char* password =  "password";
+const char* ssid = "G11-R1";
+const char* password =  "trombone";
 
 // Global objects
 Preferences prefs;
@@ -52,6 +57,10 @@ Button *modeButton;
 Button *gameButtons[NUMBER_OF_BUTTONS];
 Plant *plants[NUMBER_OF_PLANTS];
 MoistureSensor *moistureSensors[NUMBER_OF_PLANTS];
+PlantLamp *plantLamps[NUMBER_OF_PLANTS];
+
+// Should be set to false when doing any action (running game, watering plants, filling reservoir, etc.)
+bool idle = false;
 
 void setup() {
   Serial.begin(9600);
@@ -60,6 +69,9 @@ void setup() {
   mcp2.begin_I2C(MCP_2_ADDRESS);
   prefs.begin("app", false);
   WiFi.begin(ssid, password);
+  // WiFi needs a small delay before it works
+  delay(2000);
+  createUDPSensors();
 
   // Set default values, enable this code block if the sketch is flashed to a new board
   // prefs.putShort("gameDuration", 30); // Value in seconds
@@ -78,11 +90,11 @@ void setup() {
   // EEPROM needs to be initialized before the moisture sensors and valves
   for (byte i = 0; i < NUMBER_OF_PLANTS; i++) {
     // Create plant dependencies
-    PlantLamp *plantLamp = new PlantLamp(LAMP_PINS[i], mcp2);
+    plantLamps[i] = new PlantLamp(LAMP_PINS[i], mcp2);
     WaterValve *waterValve = new WaterValve(WATER_VALVE_PINS[i], prefs);
     moistureSensors[i] = new MoistureSensor(MOISTURE_SENSOR_PINS[i], prefs);
     // Create the plant object and save it in the plants array
-    plants[i] = new Plant(i, moistureSensors[i], waterValve, plantLamp);
+    plants[i] = new Plant(i, moistureSensors[i], waterValve, plantLamps[i]);
   }
 
   // IO Expanders need to be initialized before the buttons
@@ -91,6 +103,8 @@ void setup() {
   for (byte i = 0; i < NUMBER_OF_BUTTONS; i++) {
     gameButtons[i] = new Button(GAME_BUTTON_PINS[i], mcp1);
   }
+
+  idle = true;
 }
 
 void loop() {
@@ -102,19 +116,65 @@ void loop() {
   shareData();
 }
 
+void createUDPSensors() {
+  // Exit the function if a WiFi connection is not established
+  if (WiFi.status() != WL_CONNECTED) return;
+  // Set http destination and headers
+  HTTPClient http;
+  http.begin("http://20.16.84.167:1026/v2/entities");
+  http.addHeader("Content-Type", "application/json");
+  // Execute post request for the installation
+  http.POST("{"
+    "\"id\":\""UDP_NAME"\","
+    "\"type\":\"MultiSensor\","
+    "\"humidity\":{\"type\":\"Integer\"},"
+    "\"temperature\":{\"type\":\"Float\"}"
+  "}");
+  // Execute post request for the game 'sensor'
+  http.POST("{"
+    "\"id\":\""UDP_G_NAME"\","
+    "\"type\":\"MultiSensor\","
+    "\"score\":{\"type\":\"Integer\"},"
+    "\"highscore\":{\"type\":\"Integer\"}"
+  "}");
+  // Execute post requests for the individual plants
+  for (byte i = 0; i < NUMBER_OF_PLANTS; i++) {
+    http.POST("{"
+      "\"id\":\""UDP_P_NAME + String(i) + "\","
+      "\"type\":\"MultiSensor\","
+      "\"moisture\":{\"type\":\"Integer\"},"
+      "\"light\":{\"type\":\"Boolean\"}"
+    "}");
+  }
+  http.end();
+}
+
 void shareData() {
   unsigned static long previousBroadcast = millis();
-  if (millis() - previousBroadcast >= prefs.getShort("tInterval") * 60000) {
+  // Only transmit measurement data if the system is idle 
+  if (millis() - previousBroadcast >= prefs.getShort("tInterval") * 60000 && idle) {
     // Exit the function if a WiFi connection is not established
     if (WiFi.status() != WL_CONNECTED) return;
     previousBroadcast = millis();
-    // Gather data to be shared
-    float humidity = dht.readHumidity();
-    float temperature = dht.readTemperature();
-    // TODO: measure light intensity
-    // TODO: get plant values: moisture, lamp state    
-    // TODO: Send the above values paired with the highscore and the playcount to UDP
+    // TODO: measure and add light intensity
     HTTPClient http;
-    http.begin("http://jsonplaceholder.typicode.com/posts");
+    // Transmit installation data
+    http.begin("http://20.16.84.167:1026/v2/entities/"UDP_NAME"/attrs");
+    http.addHeader("Content-Type", "application/json");
+    http.POST("{"
+      "\"humidity\":{\"type\":\"Integer\",\"value\":" + String(dht.readHumidity()) + "},"
+      "\"temperature\":{\"type\":\"Integer\",\"value\":" + String(dht.readTemperature()) + "}"
+    "}");
+    http.end();
+    // Transmit data for each plant
+    for (byte i = 0; i < NUMBER_OF_PLANTS; i++) {
+      http.begin("http://20.16.84.167:1026/v2/entities/"UDP_P_NAME + String(i) + "/attrs");
+      http.addHeader("Content-Type", "application/json");
+      http.POST("{"
+        "\"moisture\":{\"type\":\"Integer\",\"value\":" + String(moistureSensors[i]->getLevel()) + "},"
+        "\"light\":{\"type\":\"Boolean\",\"value\":" + String(plantLamps[i]->state) + "}"
+      "}");
+      http.end();
+    }
   }
 }
