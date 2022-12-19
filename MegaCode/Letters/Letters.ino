@@ -59,18 +59,16 @@ const unsigned short HighScore[2048] PROGMEM={
 
 void loop() {
 
-      matrix->drawRGBBitmap(0, 0, (const uint16_t *)HighScore, 64, 32);
+    matrix->drawRGBBitmap(0, 0, (const uint16_t *)HighScore, 64, 32);
     matrix->show();
     delay(4000);
     matrix->clear(); //Set image to black
 
-
 }
-
-
 
 
 void setup() {
     Serial.begin(115200);
     matrix->begin();
+    
 }
