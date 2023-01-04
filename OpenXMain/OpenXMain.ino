@@ -7,9 +7,14 @@
 #include "PlantLamp.h"
 #include "Plant.h"
 #include "DHT.h"
+// Libraries
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <Preferences.h>
+#include <BLEDevice.h>
+#include <BLEServer.h>
+#include <BLEUtils.h>
+#include <ArduinoJson.h>
 // Potential long-term issue https://github.com/adafruit/Adafruit-MCP23017-Arduino-Library
 #include <Adafruit_MCP23X17.h>
 
@@ -39,11 +44,10 @@ const byte LAMP_PINS[] {8, 9, 10, 11, 12}; // mcp2
 const byte GAME_BUTTON_PINS[] {0, 13, 1, 12, 2, 11, 3, 10, 4, 9, 5, 8}; // mcp1
 const byte RESERVOIR_SENSOR_PINS[] {6, 14, 7, 15}; // mcp2
 
-// TODO: Store SSID and password in prefs
-// const char* ssid = "The Promised LAN";
-// const char* password =  "password";
-const char* ssid = "G11-R1";
-const char* password =  "trombone";
+BLEServer* pServer = NULL;
+BLECharacteristic* pCharacteristic = NULL;
+#define SERVICE_UUID        "06cd0a01-f2af-4739-83ac-2be012508cd6"
+#define CHARACTERISTIC_UUID "4a59aa02-2178-427b-926a-ff86cfb87571"
 
 // Global objects
 Preferences prefs;
@@ -71,7 +75,8 @@ void setup() {
   WiFi.begin(ssid, password);
   // WiFi needs a small delay before it works
   delay(2000);
-  createUDPSensors();
+  // createUDPSensors();
+  initBLE();
 
   // Set default values, enable this code block if the sketch is flashed to a new board
   // prefs.putShort("gameDuration", 30); // Value in seconds
@@ -104,16 +109,72 @@ void setup() {
     gameButtons[i] = new Button(GAME_BUTTON_PINS[i], mcp1);
   }
 
-  idle = true;
+  idle = false;
 }
 
 void loop() {
-  // Serial.println(prefs.getShort("gameDuration"));
-  // Serial.println(prefs.getShort("mInterval"));
-  // Serial.println(prefs.getShort("highscore"));
-
   delay(3000);
   shareData();
+}
+
+class ServerCallback: public BLEServerCallbacks {
+    void onConnect(BLEServer* pServer) {
+      Serial.println("ServerCallback: onConnect");
+      // Calculated using https://arduinojson.org/v6/assistant/#/step1
+      StaticJsonDocument<96 + 64*NUMBER_OF_PLANTS> doc;
+      // Add settings
+      doc["gameDuration"] = prefs.getShort("gameDuration");
+      doc["tInterval"] = prefs.getShort("tInterval");
+      doc["mInterval"] = prefs.getShort("mInterval");
+      doc["highscore"] = prefs.getShort("highscore");
+      doc["rValveFlow"] = prefs.getShort("rValveFlow");
+      // Add individual plant settings
+      JsonArray plants = doc.createNestedArray("plants");
+      for (byte i = 0; i < NUMBER_OF_PLANTS; i++) {
+        JsonObject plant = plants.createNestedObject();
+        plant["moistureLimit"] = prefs.getShort("moistureLimit" + i);
+        plant["valveFlow"] = prefs.getShort("valveFlow" + i);
+        plant["moistureValue"] = moistureSensors[i]->getLevel();
+      }
+      // Serialize the JSON data and set the characteristic's value
+      char json_string[100 + 64*NUMBER_OF_PLANTS];
+      serializeJson(doc, json_string);
+      pCharacteristic->setValue(json_string);
+    };
+
+    void onDisconnect(BLEServer* pServer) {
+      Serial.println("ServerCallback: onDisconnect");
+      BLEDevice::startAdvertising();
+    }
+};
+
+class CCallbacks: public BLECharacteristicCallbacks {
+  void onWrite(BLECharacteristic *pCharacteristic) {
+    String stringValue = pCharacteristic->getValue().c_str();
+    Serial.println(stringValue);
+  };
+};
+
+void initBLE() {
+  BLEDevice::init("OpenX-ETP-Inst");
+  // Create server
+  pServer = BLEDevice::createServer();
+  pServer->setCallbacks(new ServerCallback());
+  // Create service
+  BLEService *pService = pServer->createService(SERVICE_UUID);
+  pCharacteristic = pService->createCharacteristic(
+                      CHARACTERISTIC_UUID,
+                      BLECharacteristic::PROPERTY_READ |
+                      BLECharacteristic::PROPERTY_WRITE
+                    );
+  pCharacteristic->setCallbacks(new CCallbacks());
+  pService->start();
+  
+  BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
+  pAdvertising->addServiceUUID(SERVICE_UUID);
+  pAdvertising->setScanResponse(false);
+  pAdvertising->setMinPreferred(0x0);
+  BLEDevice::startAdvertising();
 }
 
 void createUDPSensors() {
