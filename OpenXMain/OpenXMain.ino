@@ -73,23 +73,18 @@ void setup() {
   mcp1.begin_I2C(MCP_1_ADDRESS);
   mcp2.begin_I2C(MCP_2_ADDRESS);
   prefs.begin("app", false);
-  WiFi.begin(ssid, password);
+  char ssidBuffer[32];
+  char passBuffer[32];
+  String ssid = prefs.getString("ssid");
+  String pass = prefs.getString("pass");
+  ssid.toCharArray(ssidBuffer, ssid.length() + 1);
+  pass.toCharArray(passBuffer, pass.length() + 1);
+  WiFi.begin(ssidBuffer, passBuffer);
   // WiFi needs a small delay before it works
   delay(2000);
   // createUDPSensors();
   initBLE();
 
-  // Set default values, enable this code block if the sketch is flashed to a new board
-  // prefs.putShort("gameDuration", 30); // Value in seconds
-  // prefs.putShort("tInterval", 5); // Value in minutes
-  // prefs.putShort("mInterval", 5); // Value in seconds
-  // prefs.putShort("highscore", 862); // Highest score from playing the button game
-  // prefs.putShort("rValveFlow", 20); // Percentage that the reservoir valve opens at an interval
-  // for (byte i = 0; i < NUMBER_OF_PLANTS; i++) {
-  //   prefs.putShort("moistureLimit" + i, 300 + i); // Values at which each plant should get water
-  //   prefs.putShort("valveFlow" + i, 20 + i); // Percentages that the water valves open while watering
-  // }
-  
   // IO Expanders need to be initialized before the reservoir
   reservoir = new Reservoir(RESERVOIR_SENSOR_PINS, RESERVOIR_VALVE_PIN, RESERVOIR_PUMP_PIN, RESERVOIR_LED_PIN, mcp2, prefs);
 
@@ -122,23 +117,26 @@ class ServerCallback: public BLEServerCallbacks {
     void onConnect(BLEServer* pServer) {
       Serial.println("ServerCallback: onConnect");
       // Calculated using https://arduinojson.org/v6/assistant/#/step1
-      StaticJsonDocument<96 + 64*NUMBER_OF_PLANTS> doc;
-      // Add settings
-      doc["gameDuration"] = prefs.getShort("gameDuration");
-      doc["tInterval"] = prefs.getShort("tInterval");
-      doc["mInterval"] = prefs.getShort("mInterval");
+      StaticJsonDocument<256 + 64*NUMBER_OF_PLANTS> doc;
+      // Add WiFi settings
+      doc["ssid"] = prefs.getString("ssid");
+      doc["pass"] = prefs.getString("pass");
+      // Add general settings
+      doc["gameDuration"] = prefs.getShort("gameDuration", 30);
+      doc["tInterval"] = prefs.getShort("tInterval", 5);
+      doc["mInterval"] = prefs.getShort("mInterval", 5);
       doc["highscore"] = prefs.getShort("highscore");
-      doc["rValveFlow"] = prefs.getShort("rValveFlow");
+      doc["rValveFlow"] = prefs.getShort("rValveFlow", 20);
       // Add individual plant settings
       JsonArray plants = doc.createNestedArray("plants");
       for (byte i = 0; i < NUMBER_OF_PLANTS; i++) {
         JsonObject plant = plants.createNestedObject();
-        plant["moistureLimit"] = prefs.getShort("moistureLimit" + i);
-        plant["valveFlow"] = prefs.getShort("valveFlow" + i);
+        plant["moistureLimit"] = prefs.getShort("moistureLimit" + i, 300);
+        plant["valveFlow"] = prefs.getShort("valveFlow" + i, 20);
         plant["moistureValue"] = moistureSensors[i]->getLevel();
       }
       // Serialize the JSON data and set the characteristic's value
-      char json_string[100 + 64*NUMBER_OF_PLANTS];
+      char json_string[180 + 64*NUMBER_OF_PLANTS];
       serializeJson(doc, json_string);
       pCharacteristic->setValue(json_string);
     };
@@ -151,8 +149,31 @@ class ServerCallback: public BLEServerCallbacks {
 
 class CCallbacks: public BLECharacteristicCallbacks {
   void onWrite(BLECharacteristic *pCharacteristic) {
-    String stringValue = pCharacteristic->getValue().c_str();
-    Serial.println(stringValue);
+    String json = pCharacteristic->getValue().c_str();
+    // Calculated using https://arduinojson.org/v6/assistant/#/step1
+    StaticJsonDocument<256 + 64*NUMBER_OF_PLANTS> doc;
+    DeserializationError error = deserializeJson(doc, json);
+    if (!error) {
+      // Store all general settings
+      prefs.putShort("gameDuration", doc["gameDuration"]);
+      prefs.putShort("tInterval", doc["tInterval"]);
+      prefs.putShort("mInterval", doc["mInterval"]);
+      prefs.putShort("highscore", doc["highscore"]);
+      prefs.putShort("rValveFlow", doc["rValveFlow"]);
+      // Store all plant specific settings
+      for (byte i = 0; i < NUMBER_OF_PLANTS; i++) {
+        prefs.putShort("moistureLimit" + i, doc["plants"][i]["moistureLimit"]);
+        prefs.putShort("valveFlow" + i, doc["plants"][i]["valveFlow"]);
+      }
+      // If either the ssid or password has been changed, save the new values and reboot
+      if (doc["ssid"] != prefs.getString("ssid") || doc["pass"] != prefs.getString("pass")) {
+        String ssid = doc["ssid"];
+        String pass = doc["pass"];
+        prefs.putString("ssid", ssid);
+        prefs.putString("pass", pass);
+        ESP.restart();
+      }
+    }
   };
 };
 
