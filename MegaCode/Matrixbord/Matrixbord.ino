@@ -8,13 +8,6 @@ void setup() {
 
 void loop() {
   
-  readESP();
-
-
-}
-
-void readESP(){
-
   //kijken of er iets beschikbaar is in de seriële poort
   while(Serial.available() > 0 ){
 
@@ -39,29 +32,16 @@ void readESP(){
       message[message_pos] = '\0';
 
       //print het bericht 
-      Serial.println(message);
+      Serial.println(message); 
+
+
 
       //reset array
       message_pos = 0;
 
-    }
+    } 
 
   }
 
 }
 
-void showHighscore(){
-
-}
-
-void showTime(){
-
-}
-
-void showScoreP1(){
-
-}
-
-void showScoreP2(){
-
-}
