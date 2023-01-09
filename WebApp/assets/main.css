@@ -1,0 +1,87 @@
+* {
+    color: #616161;
+    font-family: 'Resist Sans Text';
+    font-weight: 400;
+}
+
+a {
+    text-decoration: none;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+}
+
+section {
+    margin: 35px;
+}
+
+h1 {
+    font-size: 50px;
+    font-weight: 400;
+}
+
+i {
+    color: #A5D19E;
+    font-size: 55px;
+    transition: .25s ease;
+}
+
+button > i {
+    color: white;
+}
+
+.card-header > a {
+    padding: 16px;
+}
+
+.card-header h3 {
+    font-size: 44px;
+    font-weight: 400;
+}
+
+a[aria-expanded="true"] > i {
+    transform: rotate(90deg);
+}
+
+.flex-row > input {
+    width: 50%;
+    padding: 15px 30px 15px 30px;
+    font-size: 35px;
+}
+
+.flex-row > p {
+    font-size: 38px;
+}
+
+nav {
+    background-color: #A5D19E;
+    border-bottom: 1px solid #EEEEEE;
+    height: 120px;
+}
+
+nav > h1 {
+    margin-left: 35px;
+    padding-top: 34px;
+}
+
+nav > button {
+    margin-right: 24px;
+}
+
+nav b {
+    color: white;
+}
+
+#save-button.show {
+    right: 100px;
+}
+
+#save-button {
+    transition: .5s ease;
+    right: -130px;
+    bottom: 100px;
+    position: fixed;
+    padding: 33px;
+}
