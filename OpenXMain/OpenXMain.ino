@@ -44,18 +44,25 @@ const byte LAMP_PINS[] {8, 9, 10, 11, 12}; // mcp2
 const byte GAME_BUTTON_PINS[] {0, 13, 1, 12, 2, 11, 3, 10, 4, 9, 5, 8}; // mcp1
 const byte RESERVOIR_SENSOR_PINS[] {6, 14, 7, 15}; // mcp2
 
+// BLE variables
 String BLEPin = "999999";
 BLEServer* pServer = NULL;
 BLECharacteristic* pCharacteristic = NULL;
 #define SERVICE_UUID        "06cd0a01-f2af-4739-83ac-2be012508cd6"
 #define CHARACTERISTIC_UUID "4a59aa02-2178-427b-926a-ff86cfb87571"
 
+// NTP server variables
+const char* ntpServer          = "pool.ntp.org";
+const long  gmtOffset_sec      = 3600;
+const int   daylightOffset_sec = 3600;
+
 // Global objects
 Preferences prefs;
 DHT dht(DHTPIN, DHTTYPE);
 Adafruit_MCP23X17 mcp1;
 Adafruit_MCP23X17 mcp2;
-// TODO: Initialize battery and screen objects
+// TODO: Initialize screen object
+Battery *battery;
 Reservoir *reservoir;
 Button *startButton;
 Button *modeButton;
@@ -73,25 +80,16 @@ void setup() {
   mcp1.begin_I2C(MCP_1_ADDRESS);
   mcp2.begin_I2C(MCP_2_ADDRESS);
   prefs.begin("app", false);
-  char ssidBuffer[32];
-  char passBuffer[32];
-  String ssid = prefs.getString("ssid");
-  String pass = prefs.getString("pass");
-  ssid.toCharArray(ssidBuffer, ssid.length() + 1);
-  pass.toCharArray(passBuffer, pass.length() + 1);
-  WiFi.begin(ssidBuffer, passBuffer);
-  // WiFi needs a small delay before it works
-  delay(2000);
-  createUDPSensors();
   initBLE();
 
   // IO Expanders need to be initialized before the reservoir
   reservoir = new Reservoir(RESERVOIR_SENSOR_PINS, RESERVOIR_VALVE_PIN, RESERVOIR_PUMP_PIN, RESERVOIR_LED_PIN, mcp2, prefs);
+  battery = new Battery();
 
   // EEPROM needs to be initialized before the moisture sensors and valves
   for (byte i = 0; i < NUMBER_OF_PLANTS; i++) {
     // Create plant dependencies
-    plantLamps[i] = new PlantLamp(LAMP_PINS[i], mcp2);
+    plantLamps[i] = new PlantLamp(LAMP_PINS[i], mcp2, prefs);
     WaterValve *waterValve = new WaterValve(WATER_VALVE_PINS[i], prefs);
     moistureSensors[i] = new MoistureSensor(MOISTURE_SENSOR_PINS[i], prefs);
     // Create the plant object and save it in the plants array
@@ -104,19 +102,38 @@ void setup() {
   for (byte i = 0; i < NUMBER_OF_BUTTONS; i++) {
     gameButtons[i] = new Button(GAME_BUTTON_PINS[i], mcp1);
   }
+  
+  createUDPSensors();
+  xTaskCreate(udpTransmit, "udpTransmit", 2048, NULL, 0, NULL);
+  xTaskCreate(batDrain, "batDrain", 2048, NULL, 1, NULL);
 
-  idle = false;
+  // Connect to the internet
+  char ssidBuffer[32];
+  char passBuffer[32];
+  String ssid = prefs.getString("ssid");
+  String pass = prefs.getString("pass");
+  ssid.toCharArray(ssidBuffer, ssid.length() + 1);
+  pass.toCharArray(passBuffer, pass.length() + 1);
+  WiFi.begin(ssidBuffer, passBuffer);
+  // Only continue when an internet connection has been established
+  while (WiFi.status() != WL_CONNECTED) {
+    Serial.println("Connecting to the internet...");
+    delay(250);
+  }
+  // Init and get the time
+  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+
+  idle = true;
 }
 
 void loop() {
   delay(3000);
-  shareData();
 }
 
 class ServerCallback: public BLEServerCallbacks {
     void onConnect(BLEServer* pServer) {
       // Calculated using https://arduinojson.org/v6/assistant/#/step1
-      StaticJsonDocument<256 + 64*NUMBER_OF_PLANTS> doc;
+      StaticJsonDocument<512 + 64*NUMBER_OF_PLANTS> doc;
       doc["pin"] = "";
       // Add WiFi settings
       doc["ssid"] = prefs.getString("ssid");
@@ -127,6 +144,10 @@ class ServerCallback: public BLEServerCallbacks {
       doc["mInterval"] = prefs.getShort("mInterval", 5);
       doc["highscore"] = prefs.getShort("highscore");
       doc["rValveFlow"] = prefs.getShort("rValveFlow", 20);
+      doc["activeStart"] = prefs.getShort("activeStart", 7);
+      doc["activeEnd"] = prefs.getShort("activeEnd", 21);
+      doc["sunHours"] = prefs.getShort("sunHours", 8);
+      doc["battDrain"] = prefs.getShort("batDrain", 30);
       // Add individual plant settings
       JsonArray plants = doc.createNestedArray("plants");
       for (byte i = 0; i < NUMBER_OF_PLANTS; i++) {
@@ -136,7 +157,7 @@ class ServerCallback: public BLEServerCallbacks {
         plant["moistureValue"] = moistureSensors[i]->getLevel();
       }
       // Serialize the JSON data and set the characteristic's value
-      char json_string[192 + 64*NUMBER_OF_PLANTS];
+      char json_string[512 + 64*NUMBER_OF_PLANTS];
       serializeJson(doc, json_string);
       pCharacteristic->setValue(json_string);
     };
@@ -161,6 +182,10 @@ class CCallbacks: public BLECharacteristicCallbacks {
         prefs.putShort("mInterval", doc["mInterval"]);
         prefs.putShort("highscore", doc["highscore"]);
         prefs.putShort("rValveFlow", doc["rValveFlow"]);
+        prefs.putShort("activeStart", doc["activeStart"]);
+        prefs.putShort("activeEnd", doc["activeEnd"]);
+        prefs.putShort("sunHours", doc["sunHours"]);
+        prefs.putShort("batDrain", doc["batDrain"]);
         // Store all plant specific settings
         for (byte i = 0; i < NUMBER_OF_PLANTS; i++) {
           prefs.putShort("moistureLimit" + i, doc["plants"][i]["moistureLimit"]);
@@ -236,32 +261,48 @@ void createUDPSensors() {
   http.end();
 }
 
-void shareData() {
-  unsigned static long previousBroadcast = millis();
-  // Only transmit measurement data if the system is idle 
-  if (millis() - previousBroadcast >= prefs.getShort("tInterval") * 60000 && idle) {
-    // Exit the function if a WiFi connection is not established
-    if (WiFi.status() != WL_CONNECTED) return;
-    previousBroadcast = millis();
-    // TODO: measure and add light intensity
-    HTTPClient http;
-    // Transmit installation data
-    http.begin("http://20.16.84.167:1026/v2/entities/"UDP_NAME"/attrs");
-    http.addHeader("Content-Type", "application/json");
-    http.POST("{"
-      "\"humidity\":{\"type\":\"Integer\",\"value\":" + String(dht.readHumidity()) + "},"
-      "\"temperature\":{\"type\":\"Integer\",\"value\":" + String(dht.readTemperature()) + "}"
-    "}");
-    http.end();
-    // Transmit data for each plant
-    for (byte i = 0; i < NUMBER_OF_PLANTS; i++) {
-      http.begin("http://20.16.84.167:1026/v2/entities/"UDP_P_NAME + String(i) + "/attrs");
+void udpTransmit(void *params) {
+  for(;;) {
+    // Don't try to send data if a WiFi connection is not established or when the system isn't in idle mode
+    if (WiFi.status() == WL_CONNECTED && idle) {
+      // TODO: measure and add light intensity
+      HTTPClient http;
+      // Transmit installation data
+      http.begin("http://20.16.84.167:1026/v2/entities/"UDP_NAME"/attrs");
       http.addHeader("Content-Type", "application/json");
       http.POST("{"
-        "\"moisture\":{\"type\":\"Integer\",\"value\":" + String(moistureSensors[i]->getLevel()) + "},"
-        "\"light\":{\"type\":\"Boolean\",\"value\":" + String(plantLamps[i]->state) + "}"
+        "\"humidity\":{\"type\":\"Integer\",\"value\":" + String(dht.readHumidity()) + "},"
+        "\"temperature\":{\"type\":\"Integer\",\"value\":" + String(dht.readTemperature()) + "}"
       "}");
       http.end();
+      // Transmit data for each plant
+      for (byte i = 0; i < NUMBER_OF_PLANTS; i++) {
+        http.begin("http://20.16.84.167:1026/v2/entities/"UDP_P_NAME + String(i) + "/attrs");
+        http.addHeader("Content-Type", "application/json");
+        http.POST("{"
+          "\"moisture\":{\"type\":\"Integer\",\"value\":" + String(moistureSensors[i]->getLevel()) + "},"
+          "\"light\":{\"type\":\"Boolean\",\"value\":" + String(plantLamps[i]->state) + "}"
+        "}");
+        http.end();
+      }
     }
+    vTaskDelay(pdMS_TO_TICKS(prefs.getShort("tInterval") * 600));
+    Serial.println(uxTaskGetStackHighWaterMark(NULL));
+  }
+}
+
+void batDrain(void *params) {
+  for(;;) {
+    if (idle) {
+      // Drain battery by one percent
+      battery->drain();
+      // Turn all lamps off if the battery is empty
+      if (!battery->getLevel()) {
+        for (byte i = 0; i < NUMBER_OF_PLANTS; i++) {
+          plantLamps[i]->off();
+        }
+      }
+    }
+    vTaskDelay(pdMS_TO_TICKS(prefs.getShort("batDrain") / 100 * 60000));
   }
 }
