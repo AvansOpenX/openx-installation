@@ -16,3 +16,7 @@ void Plant::init(byte index) {
 bool Plant::needsWater() {
   return moistureSensor->getOffset() < 0;
 }
+
+bool Plant::needsLight() {
+  return plantLamp->getOnTime() < prefs.getShort("sunHours", 8);
+}

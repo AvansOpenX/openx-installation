@@ -303,6 +303,20 @@ void measureValues(void *params) {
           // TODO: Open the plant's water valve and add a delay for said plant to let the water transfer into the soil
         }
       }
+      struct tm timeinfo;
+      if(!getLocalTime(&timeinfo)){ return; }
+      // Turn the lamps on after closing time if the specified number of sun hours hasn't been reached during the day
+      if (timeinfo.tm_hour > prefs.getShort("activeEnd") || timeinfo.tm_hour < prefs.getShort("activeStart")) {
+        // Check for each plant whether they need light
+        for (byte i = 0; i < NUMBER_OF_PLANTS; i++) {
+          // If the plant needs light, turn the lamp on, otherwise turn the lamp off, if the lamp is already off, do nothing
+          if (plants[i]->needsLight()) {
+            plants[i]->plantLamp->on();
+          } else {
+            plants[i]->plantLamp->off();
+          }
+        }
+      }
     }
     vTaskDelay(pdMS_TO_TICKS(prefs.getShort("mInterval") * 1000));
   }

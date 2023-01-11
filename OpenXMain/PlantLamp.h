@@ -3,7 +3,6 @@
 
 #include <Arduino.h>
 #include <Adafruit_MCP23X17.h>
-#include <Preferences.h>
 
 class PlantLamp {
   private:
@@ -11,7 +10,6 @@ class PlantLamp {
     Adafruit_MCP23X17 mcp;
     unsigned long startTime;
     unsigned long activeTime;
-    Preferences prefs;
 
   public:
     PlantLamp(byte pin, Adafruit_MCP23X17 &mcp, Preferences &prefs);
@@ -21,6 +19,7 @@ class PlantLamp {
     void on();
     void off();
     void resetOnTime();
+    int getOnTime();
 };
 
 #endif
