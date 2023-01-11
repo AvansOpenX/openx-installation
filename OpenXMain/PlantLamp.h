@@ -12,7 +12,7 @@ class PlantLamp {
     unsigned long activeTime;
 
   public:
-    PlantLamp(byte pin, Adafruit_MCP23X17 &mcp, Preferences &prefs);
+    PlantLamp(byte pin, Adafruit_MCP23X17 &mcp);
     
     bool state;
     void init();

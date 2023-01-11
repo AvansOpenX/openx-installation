@@ -89,11 +89,11 @@ void setup() {
   // EEPROM needs to be initialized before the moisture sensors and valves
   for (byte i = 0; i < NUMBER_OF_PLANTS; i++) {
     // Create plant dependencies
-    plantLamps[i] = new PlantLamp(LAMP_PINS[i], mcp2, prefs);
+    plantLamps[i] = new PlantLamp(LAMP_PINS[i], mcp2);
     WaterValve *waterValve = new WaterValve(WATER_VALVE_PINS[i], prefs);
     moistureSensors[i] = new MoistureSensor(MOISTURE_SENSOR_PINS[i], prefs);
     // Create the plant object and save it in the plants array
-    plants[i] = new Plant(i, moistureSensors[i], waterValve, plantLamps[i]);
+    plants[i] = new Plant(i, moistureSensors[i], waterValve, plantLamps[i], prefs);
   }
 
   // IO Expanders need to be initialized before the buttons

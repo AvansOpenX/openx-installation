@@ -14,7 +14,7 @@ class Plant {
     Preferences prefs;
 
   public:
-    Plant(byte index, MoistureSensor *moistureSensor, WaterValve *waterValve, PlantLamp *plantLamp, Preferences *prefs);
+    Plant(byte index, MoistureSensor *moistureSensor, WaterValve *waterValve, PlantLamp *plantLamp, Preferences &prefs);
     
     void init(byte index);
     bool needsWater();

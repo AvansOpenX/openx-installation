@@ -1,9 +1,10 @@
 #include "Plant.h"
 
-Plant::Plant(byte index, MoistureSensor *moistureSensor, WaterValve *waterValve, PlantLamp *plantLamp) {
+Plant::Plant(byte index, MoistureSensor *moistureSensor, WaterValve *waterValve, PlantLamp *plantLam, Preferences &prefs) {
   this->moistureSensor = moistureSensor;
   this->waterValve = waterValve;
   this->plantLamp = plantLamp;
+  this->prefs = prefs;
   init(index);
 }
 
