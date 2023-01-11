@@ -104,7 +104,11 @@ void setup() {
   }
   
   createUDPSensors();
+  // Share sensor measurements with UDP
   xTaskCreate(udpTransmit, "udpTransmit", 2048, NULL, 0, NULL);
+  // Measure moisture values and control the waterflow
+  xTaskCreate(measureValues, "measureValues", 2048, NULL, 2, NULL);
+  // Drain the battery and control the lamps
   xTaskCreate(batDrain, "batDrain", 2048, NULL, 1, NULL);
 
   // Connect to the internet
@@ -288,6 +292,19 @@ void udpTransmit(void *params) {
     }
     vTaskDelay(pdMS_TO_TICKS(prefs.getShort("tInterval") * 600));
     Serial.println(uxTaskGetStackHighWaterMark(NULL));
+  }
+}
+
+void measureValues(void *params) {
+  for(;;) {
+    if (idle) {
+      for (byte i = 0; i < NUMBER_OF_PLANTS; i++) {
+        if (plants[i]->needsWater()) {
+          // TODO: Open the plant's water valve and add a delay for said plant to let the water transfer into the soil
+        }
+      }
+    }
+    vTaskDelay(pdMS_TO_TICKS(prefs.getShort("mInterval") * 1000));
   }
 }
 
