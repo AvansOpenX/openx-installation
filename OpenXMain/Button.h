@@ -7,6 +7,8 @@
 class Button {
   private:
     byte pin;
+    bool state;
+    bool lastState;
     Adafruit_MCP23X17 mcp;
   
   public: 

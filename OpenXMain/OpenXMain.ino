@@ -131,7 +131,11 @@ void setup() {
 }
 
 void loop() {
-  delay(3000);
+  if (startButton->isPressed()) {
+    idle = false;
+    // Run game
+  }
+  delay(30);
 }
 
 class ServerCallback: public BLEServerCallbacks {
@@ -203,8 +207,6 @@ class CCallbacks: public BLECharacteristicCallbacks {
           prefs.putString("pass", pass);
           ESP.restart();
         }
-      } else {
-        // Do nothing
       }
     }
   };
@@ -216,7 +218,7 @@ void initBLE() {
   pServer = BLEDevice::createServer();
   pServer->setCallbacks(new ServerCallback());
   // Create service
-  BLEService *pService = pServer->createService(SERVICE_UUID);
+  BLEService *pService = pServer->createService(SERVICE_UUID);+
   pCharacteristic = pService->createCharacteristic(
                       CHARACTERISTIC_UUID,
                       BLECharacteristic::PROPERTY_READ |
