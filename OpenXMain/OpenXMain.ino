@@ -104,7 +104,7 @@ void setup() {
   }
   
   createUDPSensors();
-  xTaskCreate(udpTransmit, "udpTransmit", 2048, NULL, 0, NULL);
+  xTaskCreate(udpTransmit, "udpTransmit", 3000, NULL, 0, NULL);
   xTaskCreate(batDrain, "batDrain", 2048, NULL, 1, NULL);
 
   // Connect to the internet
@@ -265,29 +265,41 @@ void udpTransmit(void *params) {
   for(;;) {
     // Don't try to send data if a WiFi connection is not established or when the system isn't in idle mode
     if (WiFi.status() == WL_CONNECTED && idle) {
-      // TODO: measure and add light intensity
       HTTPClient http;
+      // Create the JSON to be sent
+      StaticJsonDocument<128> installation;
+      // TODO: measure and add light intensity
+      JsonObject humidity = installation.createNestedObject("humidity");
+      humidity["type"] = "Integer";
+      humidity["value"] = dht.readHumidity();
+      JsonObject temperature = installation.createNestedObject("temperature");
+      temperature["type"] = "Integer";
+      temperature["value"] = dht.readTemperature();
+      char installation_json[128];
+      serializeJson(installation, installation_json);
       // Transmit installation data
       http.begin("http://20.16.84.167:1026/v2/entities/"UDP_NAME"/attrs");
       http.addHeader("Content-Type", "application/json");
-      http.POST("{"
-        "\"humidity\":{\"type\":\"Integer\",\"value\":" + String(dht.readHumidity()) + "},"
-        "\"temperature\":{\"type\":\"Integer\",\"value\":" + String(dht.readTemperature()) + "}"
-      "}");
+      http.POST(installation_json);
       http.end();
       // Transmit data for each plant
       for (byte i = 0; i < NUMBER_OF_PLANTS; i++) {
+        StaticJsonDocument<128> plant;
+        JsonObject moisture = plant.createNestedObject("moisture");
+        moisture["type"] = "Integer";
+        moisture["value"] = moistureSensors[i]->getLevel();
+        JsonObject light = plant.createNestedObject("light");
+        light["type"] = "Boolean";
+        light["value"] = plantLamps[i]->state;
+        char plant_json[128];
+        serializeJson(plant, plant_json);
         http.begin("http://20.16.84.167:1026/v2/entities/"UDP_P_NAME + String(i) + "/attrs");
         http.addHeader("Content-Type", "application/json");
-        http.POST("{"
-          "\"moisture\":{\"type\":\"Integer\",\"value\":" + String(moistureSensors[i]->getLevel()) + "},"
-          "\"light\":{\"type\":\"Boolean\",\"value\":" + String(plantLamps[i]->state) + "}"
-        "}");
+        http.POST(plant_json);
         http.end();
       }
     }
-    vTaskDelay(pdMS_TO_TICKS(prefs.getShort("tInterval") * 600));
-    Serial.println(uxTaskGetStackHighWaterMark(NULL));
+    vTaskDelay(pdMS_TO_TICKS(prefs.getShort("tInterval") * 60000));
   }
 }
 
