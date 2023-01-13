@@ -7,13 +7,32 @@ PlantLamp::PlantLamp(byte pin, Adafruit_MCP23X17 &mcp) {
 }
   
 void PlantLamp::init() {
-  off();
+
 }
 
 void PlantLamp::on() {
-  state = true;
+  if (!state) {
+    // Set the timestamp for when the lamp lit up
+    startTime = millis();
+    state = true;
+  }
 }
 
 void PlantLamp::off() {
-  state = false;
+  if (state) {
+    // Add the time the lamp has been on to activeTime
+    activeTime += millis() - startTime;
+    // Reset the startTime
+    startTime = 0;
+    state = false;
+  }
+}
+
+void PlantLamp::resetOnTime() {
+  off();
+  activeTime = 0;
+}
+
+int PlantLamp::getOnTime() {
+  return (activeTime + startTime ? millis() - startTime : 0) / 1000 / 60 / 60;
 }

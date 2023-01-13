@@ -11,5 +11,9 @@ void Button::init() {
 }
 
 bool Button::isPressed() {
-  return mcp.digitalRead(0);
+  state = mcp.digitalRead(0);
+  // Compare the current state to the previous state, if the state has changed, return true
+  bool rtrVal = state != lastState && state == HIGH;
+  lastState = state;
+  return rtrVal;
 }
