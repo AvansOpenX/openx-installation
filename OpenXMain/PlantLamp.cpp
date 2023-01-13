@@ -7,7 +7,7 @@ PlantLamp::PlantLamp(byte pin, Adafruit_MCP23X17 &mcp) {
 }
   
 void PlantLamp::init() {
-  off();
+
 }
 
 void PlantLamp::on() {
@@ -24,7 +24,7 @@ void PlantLamp::off() {
     activeTime += millis() - startTime;
     // Reset the startTime
     startTime = 0;
-    state = false;    
+    state = false;
   }
 }
 

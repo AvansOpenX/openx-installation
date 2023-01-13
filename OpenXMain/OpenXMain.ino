@@ -218,7 +218,7 @@ void initBLE() {
   pServer = BLEDevice::createServer();
   pServer->setCallbacks(new ServerCallback());
   // Create service
-  BLEService *pService = pServer->createService(SERVICE_UUID);+
+  BLEService *pService = pServer->createService(SERVICE_UUID);
   pCharacteristic = pService->createCharacteristic(
                       CHARACTERISTIC_UUID,
                       BLECharacteristic::PROPERTY_READ |
