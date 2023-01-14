@@ -38,23 +38,23 @@
 #define UDP_P_NAME "OpenXPlant"
 #define UDP_G_NAME "OpenXGame"
 
-const byte MOISTURE_SENSOR_PINS[] {32, 35, 34, 39, 36};
-const byte WATER_VALVE_PINS[] {12, 14, 27, 26, 25};
-const byte LAMP_PINS[] {8, 9, 10, 11, 12}; // mcp2
-const byte GAME_BUTTON_PINS[] {0, 13, 1, 12, 2, 11, 3, 10, 4, 9, 5, 8}; // mcp1
-const byte RESERVOIR_SENSOR_PINS[] {6, 14, 7, 15}; // mcp2
+const byte MOISTURE_SENSOR_PINS[] { 32, 35, 34, 39, 36 };
+const byte WATER_VALVE_PINS[] { 12, 14, 27, 26, 25 };
+const byte LAMP_PINS[] { 8, 9, 10, 11, 12 }; // mcp2
+const byte GAME_BUTTON_PINS[] { 0, 13, 1, 12, 2, 11, 3, 10, 4, 9, 5, 8 }; // mcp1
+const byte RESERVOIR_SENSOR_PINS[] { 6, 14, 7, 15 }; // mcp2
 
 // BLE variables
 String BLEPin = "999999";
-BLEServer* pServer = NULL;
-BLECharacteristic* pCharacteristic = NULL;
-#define SERVICE_UUID        "06cd0a01-f2af-4739-83ac-2be012508cd6"
+BLEServer *pServer = NULL;
+BLECharacteristic *pCharacteristic = NULL;
+#define SERVICE_UUID "06cd0a01-f2af-4739-83ac-2be012508cd6"
 #define CHARACTERISTIC_UUID "4a59aa02-2178-427b-926a-ff86cfb87571"
 
 // NTP server variables
-const char* ntpServer          = "pool.ntp.org";
-const long  gmtOffset_sec      = 3600;
-const int   daylightOffset_sec = 3600;
+const char *ntpServer = "pool.ntp.org";
+const long gmtOffset_sec = 3600;
+const int daylightOffset_sec = 3600;
 
 // Global objects
 Preferences prefs;
@@ -109,7 +109,7 @@ void setup() {
   for (byte i = 0; i < NUMBER_OF_BUTTONS; i++) {
     gameButtons[i] = new Button(GAME_BUTTON_PINS[i], mcp1, buttonLeds, i + 2);
   }
-  
+
   createUDPSensors();
   // Share sensor measurements with UDP
   xTaskCreate(udpTransmit, "udpTransmit", 3000, NULL, 0, NULL);
@@ -173,11 +173,11 @@ void startDelay() {
 }
 
 void runGame() {
-  int score = 0;
-  int activeButton = getRandomIntBetween(NUMBER_OF_BUTTONS + 1, 0, NUMBER_OF_BUTTONS);
   // Calculate when the game should end
   unsigned long endTime = millis() + prefs.getShort("gameDuration", 30) * 1000;
   if (!multiplayer) {
+    int score = 0;
+    int activeButton = getRandomIntBetween(NUMBER_OF_BUTTONS + 1, 0, NUMBER_OF_BUTTONS);
     gameButtons[activeButton]->on();
     // Keep looping until the current time is greater than the endTime
     while (millis() < endTime) {
@@ -192,15 +192,15 @@ void runGame() {
       }
     }
     gameButtons[activeButton]->off();
-    // TODO: An ending animation
-    // TODO: Share the score with UDP
+    // TODO: Display an ending animation
+    shareScore(score);
+    // Save the score if it has surpassed the highscore
+    if (score > prefs.getShort("highscore")) {
+      prefs.putShort("highscore", score);
+      // TODO: Display a celebratory animation
+    }
   } else {
     // TODO: Add multiplayer mode
-  }
-  // Save the score if it has surpassed the highscore
-  if (score > prefs.getShort("highscore")) {
-    prefs.putShort("highscore", score);
-    // TODO: Display a celebratory animation
   }
 }
 
@@ -219,7 +219,7 @@ void gameCountdown(void *params) {
 
 // Use max + 1 as the old value if there is no old value
 int getRandomIntBetween(int old, int min, int max) {
-  while(true) {
+  while (true) {
     int rnd = random(max - min) + min;
     // Return the int if it's not the same as the old value, otherwise keep looping
     if (rnd != old) {
@@ -228,10 +228,10 @@ int getRandomIntBetween(int old, int min, int max) {
   }
 }
 
-class ServerCallback: public BLEServerCallbacks {
-  void onConnect(BLEServer* pServer) {
+class ServerCallback : public BLEServerCallbacks {
+  void onConnect(BLEServer *pServer) {
     // Calculated using https://arduinojson.org/v6/assistant/#/step1
-    StaticJsonDocument<512 + 64*NUMBER_OF_PLANTS> doc;
+    StaticJsonDocument<512 + 64 * NUMBER_OF_PLANTS> doc;
     doc["pin"] = "";
     // Add WiFi settings
     doc["ssid"] = prefs.getString("ssid");
@@ -255,21 +255,21 @@ class ServerCallback: public BLEServerCallbacks {
       plant["moistureValue"] = moistureSensors[i]->getLevel();
     }
     // Serialize the JSON data and set the characteristic's value
-    char json_string[512 + 64*NUMBER_OF_PLANTS];
+    char json_string[512 + 64 * NUMBER_OF_PLANTS];
     serializeJson(doc, json_string);
     pCharacteristic->setValue(json_string);
   };
 
-  void onDisconnect(BLEServer* pServer) {
+  void onDisconnect(BLEServer *pServer) {
     BLEDevice::startAdvertising();
   }
 };
 
-class CCallbacks: public BLECharacteristicCallbacks {
+class CCallbacks : public BLECharacteristicCallbacks {
   void onWrite(BLECharacteristic *pCharacteristic) {
     String json = pCharacteristic->getValue().c_str();
     // Calculated using https://arduinojson.org/v6/assistant/#/step1
-    StaticJsonDocument<512 + 64*NUMBER_OF_PLANTS> doc;
+    StaticJsonDocument<512 + 64 * NUMBER_OF_PLANTS> doc;
     DeserializationError error = deserializeJson(doc, json);
     if (!error) {
       String pin = doc["pin"];
@@ -310,13 +310,13 @@ void initBLE() {
   // Create service
   BLEService *pService = pServer->createService(SERVICE_UUID);
   pCharacteristic = pService->createCharacteristic(
-                      CHARACTERISTIC_UUID,
-                      BLECharacteristic::PROPERTY_READ |
-                      BLECharacteristic::PROPERTY_WRITE
-                    );
+    CHARACTERISTIC_UUID,
+    BLECharacteristic::PROPERTY_READ | 
+    BLECharacteristic::PROPERTY_WRITE
+  );
   pCharacteristic->setCallbacks(new CCallbacks());
   pService->start();
-  
+
   BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
   pAdvertising->addServiceUUID(SERVICE_UUID);
   pAdvertising->setScanResponse(false);
@@ -333,14 +333,14 @@ void createUDPSensors() {
   http.addHeader("Content-Type", "application/json");
   // Execute post request for the installation
   http.POST("{"
-    "\"id\":\""UDP_NAME"\","
+    "\"id\":\"" UDP_NAME "\","
     "\"type\":\"MultiSensor\","
     "\"humidity\":{\"type\":\"Integer\"},"
     "\"temperature\":{\"type\":\"Float\"}"
   "}");
   // Execute post request for the game 'sensor'
   http.POST("{"
-    "\"id\":\""UDP_G_NAME"\","
+    "\"id\":\"" UDP_G_NAME "\","
     "\"type\":\"MultiSensor\","
     "\"score\":{\"type\":\"Integer\"},"
     "\"highscore\":{\"type\":\"Integer\"}"
@@ -348,7 +348,7 @@ void createUDPSensors() {
   // Execute post requests for the individual plants
   for (byte i = 0; i < NUMBER_OF_PLANTS; i++) {
     http.POST("{"
-      "\"id\":\""UDP_P_NAME + String(i) + "\","
+      "\"id\":\"" UDP_P_NAME + String(i) + "\","
       "\"type\":\"MultiSensor\","
       "\"moisture\":{\"type\":\"Integer\"},"
       "\"light\":{\"type\":\"Boolean\"}"
@@ -357,8 +357,26 @@ void createUDPSensors() {
   http.end();
 }
 
+void shareScore(int score) {
+  // Exit the function if a WiFi connection is not established
+  if (WiFi.status() != WL_CONNECTED) return;
+  // Create the JSON to be sent
+  StaticJsonDocument<64> game;
+  game["score"] = score;
+  game["highscore"] = score;
+  char game_json[64];
+  serializeJson(game, game_json);
+  // Set http destination and headers
+  HTTPClient http;
+  http.begin("http://20.16.84.167:1026/v2/entities/" UDP_G_NAME "/attrs");
+  http.addHeader("Content-Type", "application/json");
+  // Execute post request for the game data
+  http.POST(game_json);
+  http.end();
+}
+
 void udpTransmit(void *params) {
-  for(;;) {
+  for (;;) {
     // Don't try to send data if a WiFi connection is not established or when the system isn't in idle mode
     if (WiFi.status() == WL_CONNECTED && idle) {
       HTTPClient http;
@@ -374,7 +392,7 @@ void udpTransmit(void *params) {
       char installation_json[128];
       serializeJson(installation, installation_json);
       // Transmit installation data
-      http.begin("http://20.16.84.167:1026/v2/entities/"UDP_NAME"/attrs");
+      http.begin("http://20.16.84.167:1026/v2/entities/" UDP_NAME "/attrs");
       http.addHeader("Content-Type", "application/json");
       http.POST(installation_json);
       http.end();
@@ -389,7 +407,7 @@ void udpTransmit(void *params) {
         light["value"] = plantLamps[i]->state;
         char plant_json[128];
         serializeJson(plant, plant_json);
-        http.begin("http://20.16.84.167:1026/v2/entities/"UDP_P_NAME + String(i) + "/attrs");
+        http.begin("http://20.16.84.167:1026/v2/entities/" UDP_P_NAME + String(i) + "/attrs");
         http.addHeader("Content-Type", "application/json");
         http.POST(plant_json);
         http.end();
@@ -400,7 +418,7 @@ void udpTransmit(void *params) {
 }
 
 void measureValues(void *params) {
-  for(;;) {
+  for (;;) {
     if (idle) {
       for (byte i = 0; i < NUMBER_OF_PLANTS; i++) {
         if (plants[i]->needsWater()) {
@@ -408,7 +426,7 @@ void measureValues(void *params) {
         }
       }
       struct tm timeinfo;
-      if(!getLocalTime(&timeinfo)){ return; }
+      if (!getLocalTime(&timeinfo)) return;
       // Turn the lamps on after closing time if the specified number of sun hours hasn't been reached during the day
       if (timeinfo.tm_hour > prefs.getShort("activeEnd") || timeinfo.tm_hour < prefs.getShort("activeStart")) {
         // Check for each plant whether they need light
@@ -427,7 +445,7 @@ void measureValues(void *params) {
 }
 
 void batDrain(void *params) {
-  for(;;) {
+  for (;;) {
     if (idle) {
       // Drain battery by one percent
       battery->drain();
