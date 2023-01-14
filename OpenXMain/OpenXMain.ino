@@ -64,9 +64,13 @@ Adafruit_MCP23X17 mcp2;
 // TODO: Initialize screen object
 Battery *battery;
 Reservoir *reservoir;
+
 Button *startButton;
 Button *modeButton;
 Button *gameButtons[NUMBER_OF_BUTTONS];
+Adafruit_NeoPixel buttonLeds(NUMBER_OF_BUTTONS, BUTTON_LED_PIN, NEO_GRB + NEO_KHZ800);
+Adafruit_NeoPixel ledRing(32, START_RING_PIN, NEO_GRB + NEO_KHZ800);
+
 Plant *plants[NUMBER_OF_PLANTS];
 MoistureSensor *moistureSensors[NUMBER_OF_PLANTS];
 PlantLamp *plantLamps[NUMBER_OF_PLANTS];
@@ -96,11 +100,13 @@ void setup() {
     plants[i] = new Plant(i, moistureSensors[i], waterValve, plantLamps[i], prefs);
   }
 
+  ledRing.begin();
+  buttonLeds.begin();
   // IO Expanders need to be initialized before the buttons
-  startButton = new Button(START_BUTTON_PIN, mcp1);
-  modeButton = new Button(MODE_BUTTON_PIN, mcp1);
+  startButton = new Button(START_BUTTON_PIN, mcp1, buttonLeds, 0);
+  modeButton = new Button(MODE_BUTTON_PIN, mcp1, buttonLeds, 1);
   for (byte i = 0; i < NUMBER_OF_BUTTONS; i++) {
-    gameButtons[i] = new Button(GAME_BUTTON_PINS[i], mcp1);
+    gameButtons[i] = new Button(GAME_BUTTON_PINS[i], mcp1, buttonLeds, i + 2);
   }
   
   createUDPSensors();
@@ -133,46 +139,52 @@ void setup() {
 void loop() {
   if (startButton->isPressed()) {
     idle = false;
-    // Run game
+    runGame();
+  } else {
+    // TODO: Idle animation
+    delay(30);
   }
-  delay(30);
+}
+
+void runGame() {
+
 }
 
 class ServerCallback: public BLEServerCallbacks {
-    void onConnect(BLEServer* pServer) {
-      // Calculated using https://arduinojson.org/v6/assistant/#/step1
-      StaticJsonDocument<512 + 64*NUMBER_OF_PLANTS> doc;
-      doc["pin"] = "";
-      // Add WiFi settings
-      doc["ssid"] = prefs.getString("ssid");
-      doc["pass"] = "";
-      // Add general settings
-      doc["gameDuration"] = prefs.getShort("gameDuration", 30);
-      doc["tInterval"] = prefs.getShort("tInterval", 5);
-      doc["mInterval"] = prefs.getShort("mInterval", 5);
-      doc["highscore"] = prefs.getShort("highscore");
-      doc["rValveFlow"] = prefs.getShort("rValveFlow", 20);
-      doc["activeStart"] = prefs.getShort("activeStart", 7);
-      doc["activeEnd"] = prefs.getShort("activeEnd", 21);
-      doc["sunHours"] = prefs.getShort("sunHours", 8);
-      doc["battDrain"] = prefs.getShort("batDrain", 30);
-      // Add individual plant settings
-      JsonArray plants = doc.createNestedArray("plants");
-      for (byte i = 0; i < NUMBER_OF_PLANTS; i++) {
-        JsonObject plant = plants.createNestedObject();
-        plant["moistureLimit"] = prefs.getShort("moistureLimit" + i, 300);
-        plant["valveFlow"] = prefs.getShort("valveFlow" + i, 20);
-        plant["moistureValue"] = moistureSensors[i]->getLevel();
-      }
-      // Serialize the JSON data and set the characteristic's value
-      char json_string[512 + 64*NUMBER_OF_PLANTS];
-      serializeJson(doc, json_string);
-      pCharacteristic->setValue(json_string);
-    };
-
-    void onDisconnect(BLEServer* pServer) {
-      BLEDevice::startAdvertising();
+  void onConnect(BLEServer* pServer) {
+    // Calculated using https://arduinojson.org/v6/assistant/#/step1
+    StaticJsonDocument<512 + 64*NUMBER_OF_PLANTS> doc;
+    doc["pin"] = "";
+    // Add WiFi settings
+    doc["ssid"] = prefs.getString("ssid");
+    doc["pass"] = "";
+    // Add general settings
+    doc["gameDuration"] = prefs.getShort("gameDuration", 30);
+    doc["tInterval"] = prefs.getShort("tInterval", 5);
+    doc["mInterval"] = prefs.getShort("mInterval", 5);
+    doc["highscore"] = prefs.getShort("highscore");
+    doc["rValveFlow"] = prefs.getShort("rValveFlow", 20);
+    doc["activeStart"] = prefs.getShort("activeStart", 7);
+    doc["activeEnd"] = prefs.getShort("activeEnd", 21);
+    doc["sunHours"] = prefs.getShort("sunHours", 8);
+    doc["battDrain"] = prefs.getShort("batDrain", 30);
+    // Add individual plant settings
+    JsonArray plants = doc.createNestedArray("plants");
+    for (byte i = 0; i < NUMBER_OF_PLANTS; i++) {
+      JsonObject plant = plants.createNestedObject();
+      plant["moistureLimit"] = prefs.getShort("moistureLimit" + i, 300);
+      plant["valveFlow"] = prefs.getShort("valveFlow" + i, 20);
+      plant["moistureValue"] = moistureSensors[i]->getLevel();
     }
+    // Serialize the JSON data and set the characteristic's value
+    char json_string[512 + 64*NUMBER_OF_PLANTS];
+    serializeJson(doc, json_string);
+    pCharacteristic->setValue(json_string);
+  };
+
+  void onDisconnect(BLEServer* pServer) {
+    BLEDevice::startAdvertising();
+  }
 };
 
 class CCallbacks: public BLECharacteristicCallbacks {
