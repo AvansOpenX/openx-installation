@@ -142,6 +142,9 @@ void loop() {
     idle = false;
     // Delay of 3 seconds
     startDelay();
+    // Create a task to visualize the progress of the game
+    xTaskCreate(gameCountdown, "gameCountdown", 2048, NULL, 2, NULL);
+    // Start the game
     runGame();
     idle = true;
   } else if (modeButton->isPressed()) {
@@ -170,7 +173,6 @@ void startDelay() {
 }
 
 void runGame() {
-  // TODO: Led ring game duration visualisation
   int score = 0;
   int activeButton = getRandomIntBetween(NUMBER_OF_BUTTONS + 1, 0, NUMBER_OF_BUTTONS);
   // Calculate when the game should end
@@ -186,19 +188,32 @@ void runGame() {
         activeButton = getRandomIntBetween(activeButton, 0, NUMBER_OF_BUTTONS);
         gameButtons[activeButton]->on();
         score++;
-        // TODO: Show score on the led matrix
+        // TODO: Update score on the led matrix
       }
     }
     gameButtons[activeButton]->off();
-    // TODO: Display some kind of end animation
+    // TODO: An ending animation
     // TODO: Share the score with UDP
   } else {
-    // TODO: Multiplayer mode
+    // TODO: Add multiplayer mode
   }
   // Save the score if it has surpassed the highscore
   if (score > prefs.getShort("highscore")) {
     prefs.putShort("highscore", score);
     // TODO: Display a celebratory animation
+  }
+}
+
+void gameCountdown(void *params) {
+  // Fill the ring and calculate the interval at which it should drain
+  ledRing.fill(ledRing.Color(0, 255, 0));
+  ledRing.show();
+  int interval = prefs.getShort("gameDuration", 30) * 1000 / 32;
+  for (byte i = 0; i < 32; i++) {
+    // Turn the next led off and wait
+    ledRing.setPixelColor(i, ledRing.Color(0, 0, 0));
+    ledRing.show();
+    vTaskDelay(pdMS_TO_TICKS(interval));
   }
 }
 
