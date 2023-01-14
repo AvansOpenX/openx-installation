@@ -139,6 +139,8 @@ void setup() {
 void loop() {
   if (startButton->isPressed()) {
     idle = false;
+    // Delay of 3 seconds
+    startDelay();
     runGame();
   } else {
     // TODO: Idle animation
@@ -146,8 +148,23 @@ void loop() {
   }
 }
 
-void runGame() {
+void startDelay() {
+  // Start with the led ring green
+  ledRing.fill(ledRing.Color(0, 255, 0));
+  for (byte i = 0; i < 3; i++) {
+    for (byte j = 0; j < 32; j++) {
+      // Iteratively turn leds orange, red, and off
+      if (i == 0) ledRing.setPixelColor(j, pixels.Color(255, 125, 0));
+      else if (i == 1) ledRing.setPixelColor(j, pixels.Color(255, 0, 0));
+      else if (i == 2) ledRing.setPixelColor(j, pixels.Color(0, 0, 0));
+      ledRing.show();
+      delay(32);
+    }
+  }
+}
 
+void runGame() {
+  
 }
 
 class ServerCallback: public BLEServerCallbacks {
