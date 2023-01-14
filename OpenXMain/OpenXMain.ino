@@ -75,6 +75,7 @@ Plant *plants[NUMBER_OF_PLANTS];
 MoistureSensor *moistureSensors[NUMBER_OF_PLANTS];
 PlantLamp *plantLamps[NUMBER_OF_PLANTS];
 
+bool multiplayer = false;
 // Should be set to false when doing any action (running game, watering plants, filling reservoir, etc.)
 bool idle = false;
 
@@ -142,6 +143,10 @@ void loop() {
     // Delay of 3 seconds
     startDelay();
     runGame();
+  } else if (modeButton->isPressed()) {
+    // Toggle multiplayer mode when the modeButton is pressed
+    multiplayer = !multiplayer;
+    modeButton->toggle();
   } else {
     // TODO: Idle animation
     delay(30);
@@ -164,7 +169,44 @@ void startDelay() {
 }
 
 void runGame() {
-  
+  // TODO: Led ring game duration visualisation
+  int score = 0;
+  int activeButton = getRandomIntBetween(NUMBER_OF_BUTTONS + 1, 0, NUMBER_OF_BUTTONS);
+  // Calculate when the game should end
+  unsigned long endTime = millis() + prefs.getShort("gameDuration", 30) * 1000;
+  if (!multiplayer) {
+    gameButtons[activeButton]->on();
+    // Keep looping until the current time is greater than the endTime
+    while (millis() < endTime) {
+      // Turn the button off if it's pressed
+      if (gameButtons[activeButton]->isPressed()) {
+        gameButtons[activeButton]->off();
+        // Get a new random button and turn it on
+        activeButton = getRandomIntBetween(activeButton, 0, NUMBER_OF_BUTTONS);
+        gameButtons[activeButton]->on();
+        score++;
+        // TODO: Show score on the led matrix
+      }
+    }
+    // TODO: Share the score with UDP
+  } else {
+    // TODO: Multiplayer mode
+  }
+  // Save the score if it has surpassed the highscore
+  if (score > prefs.getShort("highscore")) {
+    prefs.putShort("highscore", score);
+  }
+}
+
+// Use max + 1 as the old value if there is no old value
+int getRandomIntBetween(int old, int min, int max) {
+  while(true) {
+    int rnd = random(max - min) + min;
+    // Return the int if it's not the same as the old value, otherwise keep looping
+    if (rnd != old) {
+      return rnd;
+    }
+  }
 }
 
 class ServerCallback: public BLEServerCallbacks {
