@@ -143,6 +143,7 @@ void loop() {
     // Delay of 3 seconds
     startDelay();
     runGame();
+    idle = true;
   } else if (modeButton->isPressed()) {
     // Toggle multiplayer mode when the modeButton is pressed
     multiplayer = !multiplayer;
@@ -159,9 +160,9 @@ void startDelay() {
   for (byte i = 0; i < 3; i++) {
     for (byte j = 0; j < 32; j++) {
       // Iteratively turn leds orange, red, and off
-      if (i == 0) ledRing.setPixelColor(j, pixels.Color(255, 125, 0));
-      else if (i == 1) ledRing.setPixelColor(j, pixels.Color(255, 0, 0));
-      else if (i == 2) ledRing.setPixelColor(j, pixels.Color(0, 0, 0));
+      if (i == 0) ledRing.setPixelColor(j, ledRing.Color(255, 125, 0));
+      else if (i == 1) ledRing.setPixelColor(j, ledRing.Color(255, 0, 0));
+      else if (i == 2) ledRing.setPixelColor(j, ledRing.Color(0, 0, 0));
       ledRing.show();
       delay(32);
     }
@@ -188,6 +189,8 @@ void runGame() {
         // TODO: Show score on the led matrix
       }
     }
+    gameButtons[activeButton]->off();
+    // TODO: Display some kind of end animation
     // TODO: Share the score with UDP
   } else {
     // TODO: Multiplayer mode
@@ -195,6 +198,7 @@ void runGame() {
   // Save the score if it has surpassed the highscore
   if (score > prefs.getShort("highscore")) {
     prefs.putShort("highscore", score);
+    // TODO: Display a celebratory animation
   }
 }
 

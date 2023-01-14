@@ -10,7 +10,11 @@ Button::Button(byte pin, Adafruit_MCP23X17 &mcp, Adafruit_NeoPixel &buttonLeds, 
 
 void Button::init() {
   mcp.pinMode(pin, INPUT_PULLUP);
-  led->init();
+  setColor(0, 255, 0);
+  // Startup animation
+  on();
+  delay(75);
+  off();
 }
 
 bool Button::isPressed() {
@@ -24,13 +28,13 @@ bool Button::isPressed() {
 // LED methods
 void Button::on() {
   ledState = true;
-  buttonLeds.setPixelColor(ledIndex, pixels.Color(r, g, b));
+  buttonLeds.setPixelColor(ledIndex, buttonLeds.Color(r, g, b));
   buttonLeds.show();
 }
 
 void Button::off() {
   ledState = false;
-  buttonLeds.setPixelColor(ledIndex, pixels.Color(0, 0, 0));
+  buttonLeds.setPixelColor(ledIndex, buttonLeds.Color(0, 0, 0));
   buttonLeds.show();
 }
 
@@ -44,6 +48,6 @@ void Button::setColor(byte r, byte g, byte b) {
 
 void Button::toggle() {
   ledState = !ledState;
-  buttonLeds.setPixelColor(ledIndex, ledState ? pixels.Color(r, g, b) : pixels.Color(0, 0, 0));
+  buttonLeds.setPixelColor(ledIndex, ledState ? buttonLeds.Color(r, g, b) : buttonLeds.Color(0, 0, 0));
   buttonLeds.show();
 }

@@ -4,7 +4,6 @@
 #include <Arduino.h>
 #include <Adafruit_MCP23X17.h>
 #include <Adafruit_NeoPixel.h>
-#include "Led.h"
 
 class Button {
   private:
