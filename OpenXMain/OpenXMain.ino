@@ -144,8 +144,8 @@ void loop() {
     startDelay();
     // Create a task to visualize the progress of the game
     xTaskCreate(gameCountdown, "gameCountdown", 2048, NULL, 2, NULL);
-    // Start the game
-    runGame();
+    // Start the game, passed parameter is hardcoded due to the input being binary, runGame itself is scalable
+    runGame(multiplayer ? 2 : 1);
     idle = true;
   } else if (modeButton->isPressed()) {
     // Toggle multiplayer mode when the modeButton is pressed
@@ -172,36 +172,40 @@ void startDelay() {
   }
 }
 
-void runGame() {
+void runGame(byte playerCount) {
+  int scores[playerCount];
+  int activeButtons[playerCount];
+  // Fill the activeButtons array with random numbers and turn them on
+  for (byte i = 0; i < playerCount; i++) {
+    activeButtons[i] = getRandomIntBetween(-1, NUMBER_OF_BUTTONS / playerCount * i, NUMBER_OF_BUTTONS / playerCount * (i + 1));
+    gameButtons[activeButtons[i]]->on();
+  }
   // Calculate when the game should end
   unsigned long endTime = millis() + prefs.getShort("gameDuration", 30) * 1000;
-  if (!multiplayer) {
-    int score = 0;
-    int activeButton = getRandomIntBetween(NUMBER_OF_BUTTONS + 1, 0, NUMBER_OF_BUTTONS);
-    gameButtons[activeButton]->on();
-    // Keep looping until the current time is greater than the endTime
-    while (millis() < endTime) {
+  // Keep looping until the current time is greater than the endTime
+  while (millis() < endTime) {
+    for (byte i = 0; i < playerCount; i++) {
       // Turn the button off if it's pressed
-      if (gameButtons[activeButton]->isPressed()) {
-        gameButtons[activeButton]->off();
-        // Get a new random button and turn it on
-        activeButton = getRandomIntBetween(activeButton, 0, NUMBER_OF_BUTTONS);
-        gameButtons[activeButton]->on();
-        score++;
+      if (gameButtons[activeButtons[i]]->isPressed()) {
+        gameButtons[activeButtons[i]]->off();
+        // Get a new random button, and turn it on
+        activeButtons[i] = getRandomIntBetween(activeButtons[i], NUMBER_OF_BUTTONS / playerCount * i, NUMBER_OF_BUTTONS / playerCount * (i + 1));
+        gameButtons[activeButtons[i]]->on();
+        scores[i]++;
         // TODO: Update score on the led matrix
       }
     }
-    gameButtons[activeButton]->off();
-    // TODO: Display an ending animation
-    shareScore(score);
-    // Save the score if it has surpassed the highscore
-    if (score > prefs.getShort("highscore")) {
-      prefs.putShort("highscore", score);
+  }
+  // Turn all active buttons off, share the scores and save a possible highscore
+  for (byte i = 0; i < playerCount; i++) {
+    gameButtons[activeButtons[i]]->off();
+    shareScore(scores[i]);
+    if (scores[i] > prefs.getShort("highscore")) {
+      prefs.putShort("highscore", scores[i]);
       // TODO: Display a celebratory animation
     }
-  } else {
-    // TODO: Add multiplayer mode
   }
+  // TODO: Display an ending animation
 }
 
 void gameCountdown(void *params) {
@@ -217,7 +221,7 @@ void gameCountdown(void *params) {
   }
 }
 
-// Use max + 1 as the old value if there is no old value
+// Use max + 1 or min - 1 as the old value if there is no old value
 int getRandomIntBetween(int old, int min, int max) {
   while (true) {
     int rnd = random(max - min) + min;
