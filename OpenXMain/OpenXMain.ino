@@ -141,7 +141,7 @@ void loop() {
   if (startButton->isPressed()) {
     idle = false;
     // Delay of 3 seconds
-    startDelay();
+    startGame();
     // Create a task to visualize the progress of the game
     xTaskCreate(gameCountdown, "gameCountdown", 2048, NULL, 2, NULL);
     // Start the game, passed parameter is hardcoded due to the input being binary, runGame itself is scalable
@@ -157,7 +157,7 @@ void loop() {
   }
 }
 
-void startDelay() {
+void startGame() {
   // Start with the led ring green
   ledRing.fill(ledRing.Color(0, 255, 0));
   for (byte i = 0; i < 3; i++) {
@@ -196,16 +196,47 @@ void runGame(byte playerCount) {
       }
     }
   }
-  // Turn all active buttons off, share the scores and save a possible highscore
+  // Turn all active buttons off and return the scores
+  buttonLeds.clear();
+  buttonLeds.show();
+  // Get the winner
+  byte winner;
   for (byte i = 0; i < playerCount; i++) {
-    gameButtons[activeButtons[i]]->off();
-    shareScore(scores[i]);
+    if (scores[i] > winner) winner = i;
+  }
+  // Flash the winner's buttons green and the loser's buttons red for 3 seconds
+  for (byte i = 0; i < 6; i++) {
+    // Set all buttons to red
+    buttonLeds.fill(buttonLeds.Color(255, 0, 0));
+    // Turn the winner's buttons green
+    for (byte i = NUMBER_OF_BUTTONS / playerCount * i; i < NUMBER_OF_BUTTONS / playerCount * (i + 1); i++) {
+      buttonLeds.setPixelColor(i, buttonLeds.Color(0, 255, 0));
+    }
+    delay(250);
+    buttonLeds.clear();
+    buttonLeds.show();
+    delay(250);
+  }
+  // Check whether either of the scores has surpassed the highscore
+  for (byte i = 0; i < playerCount; i++) {
     if (scores[i] > prefs.getShort("highscore")) {
       prefs.putShort("highscore", scores[i]);
-      // TODO: Display a celebratory animation
+      // TODO: Display highscore on the led matrix
+      // Flash all buttons yellow for 5 seconds
+      for (byte i = 0; i < 10; i++) {
+        buttonLeds.fill(buttonLeds.Color(255, 255, 0));
+        buttonLeds.show();
+        delay(250);
+        buttonLeds.clear();
+        buttonLeds.show();
+        delay(250);
+      }
     }
   }
-  // TODO: Display an ending animation
+  // Share the scores
+  for (byte i = 0; i < playerCount; i++) {
+    shareScore(scores[i]);
+  }
 }
 
 void gameCountdown(void *params) {
