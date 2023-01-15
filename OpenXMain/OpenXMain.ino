@@ -145,13 +145,7 @@ void loop() {
     // Create a task to visualize the progress of the game
     xTaskCreate(gameCountdown, "gameCountdown", 2048, NULL, 2, NULL);
     // Start the game, passed parameter is hardcoded due to the input being binary, runGame itself is scalable
-    int scores[] = runGame(multiplayer ? 2 : 1);
-    byte playerCount = sizeof scores/sizeof scores[0];
-    endGame(playerCount, scores);
-    // Share the scores
-    for (byte i = 0; i < playerCount; i++) {
-      shareScore(scores[i]);
-    }
+    runGame(multiplayer ? 2 : 1);
     idle = true;
   } else if (modeButton->isPressed()) {
     // Toggle multiplayer mode when the modeButton is pressed
@@ -205,12 +199,8 @@ void runGame(byte playerCount) {
   // Turn all active buttons off and return the scores
   buttonLeds.clear();
   buttonLeds.show();
-  return scores;
-}
-
-void endGame(byte playerCount, int scores[]) {
-  byte winner;
   // Get the winner
+  byte winner;
   for (byte i = 0; i < playerCount; i++) {
     if (scores[i] > winner) winner = i;
   }
@@ -242,6 +232,10 @@ void endGame(byte playerCount, int scores[]) {
         delay(250);
       }
     }
+  }
+  // Share the scores
+  for (byte i = 0; i < playerCount; i++) {
+    shareScore(scores[i]);
   }
 }
 
