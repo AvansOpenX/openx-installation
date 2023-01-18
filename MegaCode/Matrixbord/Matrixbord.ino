@@ -1,4 +1,4 @@
-#define RXD0 0
+#define RXD1 19
 
 // RGB Panel GFX Demo example for 16x32 panel
 // By Marc MERLIN <marc_soft@merlins.org>
@@ -41,8 +41,10 @@ RGBmatrixPanel *matrix = new RGBmatrixPanel(A, B, C, D, CLK, LAT, OE, true, 64);
 #define show()           swapBuffers(true)
 
 void setup() {
-  Serial.begin(9600);
-  Serial2.begin(RXD0, 1);
+  Serial.begin(9600); //Pin 0 en 1
+  // Serial2.begin(RXD1, 1);
+  Serial1.begin(9600); //pin 18 en 19
+  // Serial2.begin(9600); //pin 16 en 17
   Serial.println("1234");
 }
 
