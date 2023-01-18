@@ -8,6 +8,8 @@ class PlantLamp {
   private:
     byte pin;
     Adafruit_MCP23X17 mcp;
+    unsigned long startTime;
+    unsigned long activeTime;
 
   public:
     PlantLamp(byte pin, Adafruit_MCP23X17 &mcp);
@@ -16,6 +18,8 @@ class PlantLamp {
     void init();
     void on();
     void off();
+    void resetOnTime();
+    int getOnTime();
 };
 
 #endif

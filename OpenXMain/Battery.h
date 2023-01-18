@@ -9,7 +9,7 @@ class Battery {
     byte percentage;
 
   public:
-    Battery(byte pin);
+    Battery();
 
     void init();
     int getLevel();
