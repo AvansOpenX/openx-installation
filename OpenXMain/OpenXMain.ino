@@ -15,6 +15,9 @@
 #include <BLEServer.h>
 #include <BLEUtils.h>
 #include <ArduinoJson.h>
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include "Adafruit_TSL2591.h"
 // Potential long-term issue https://github.com/adafruit/Adafruit-MCP23017-Arduino-Library
 #include <Adafruit_MCP23X17.h>
 
@@ -59,6 +62,7 @@ const int daylightOffset_sec = 3600;
 // Global objects
 Preferences prefs;
 DHT dht(DHTPIN, DHTTYPE);
+Adafruit_TSL2591 tsl = Adafruit_TSL2591(2591);
 Adafruit_MCP23X17 mcp1;
 Adafruit_MCP23X17 mcp2;
 // TODO: Initialize screen object
@@ -80,12 +84,13 @@ bool multiplayer = false;
 bool idle = false;
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
   dht.begin();
   mcp1.begin_I2C(MCP_1_ADDRESS);
   mcp2.begin_I2C(MCP_2_ADDRESS);
   prefs.begin("app", false);
   initBLE();
+  configureTSL();
 
   // IO Expanders need to be initialized before the reservoir
   reservoir = new Reservoir(RESERVOIR_SENSOR_PINS, RESERVOIR_VALVE_PIN, RESERVOIR_PUMP_PIN, RESERVOIR_LED_PIN, mcp2, prefs);
@@ -118,19 +123,20 @@ void setup() {
   // Drain the battery and control the lamps
   xTaskCreate(batDrain, "batDrain", 2048, NULL, 1, NULL);
 
-  // Connect to the internet
+  Connect to the internet
   char ssidBuffer[32];
   char passBuffer[32];
-  String ssid = prefs.getString("ssid");
-  String pass = prefs.getString("pass");
+  String ssid = prefs.getString("ssid", "The Promised LAN");
+  String pass = prefs.getString("pass", "password");
   ssid.toCharArray(ssidBuffer, ssid.length() + 1);
   pass.toCharArray(passBuffer, pass.length() + 1);
   WiFi.begin(ssidBuffer, passBuffer);
   // Only continue when an internet connection has been established
   while (WiFi.status() != WL_CONNECTED) {
     Serial.println("Connecting to the internet...");
-    delay(250);
+    delay(500);
   }
+  Serial.println("CONNECTED");
   // Init and get the time
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 
@@ -372,6 +378,7 @@ void createUDPSensors() {
     "\"type\":\"MultiSensor\","
     "\"humidity\":{\"type\":\"Integer\"},"
     "\"temperature\":{\"type\":\"Float\"}"
+    "\"light\":{\"type\":\"Float\"}"
   "}");
   // Execute post request for the game 'sensor'
   http.POST("{"
@@ -414,17 +421,20 @@ void udpTransmit(void *params) {
   for (;;) {
     // Don't try to send data if a WiFi connection is not established or when the system isn't in idle mode
     if (WiFi.status() == WL_CONNECTED && idle) {
+      Serial.println("UDP SHARE");
       HTTPClient http;
       // Create the JSON to be sent
-      StaticJsonDocument<128> installation;
-      // TODO: measure and add light intensity
+      StaticJsonDocument<256> installation;
+      JsonObject light = installation.createNestedObject("light");
+      light["type"] = "Float";
+      light["value"] = getTSLLux();
       JsonObject humidity = installation.createNestedObject("humidity");
       humidity["type"] = "Integer";
       humidity["value"] = dht.readHumidity();
       JsonObject temperature = installation.createNestedObject("temperature");
       temperature["type"] = "Integer";
       temperature["value"] = dht.readTemperature();
-      char installation_json[128];
+      char installation_json[256];
       serializeJson(installation, installation_json);
       // Transmit installation data
       http.begin("http://20.16.84.167:1026/v2/entities/" UDP_NAME "/attrs");
@@ -448,8 +458,32 @@ void udpTransmit(void *params) {
         http.end();
       }
     }
-    vTaskDelay(pdMS_TO_TICKS(prefs.getShort("tInterval") * 60000));
+    vTaskDelay(pdMS_TO_TICKS(prefs.getShort("tInterval", 5) * 60000));
   }
+}
+
+void configureTSL() {
+  //tsl.setGain(TSL2591_GAIN_LOW);    // 1x gain (bright light)
+  tsl.setGain(TSL2591_GAIN_MED);      // 25x gain
+  //tsl.setGain(TSL2591_GAIN_HIGH);   // 428x gain
+  
+  // Changing the integration time gives you a longer time over which to sense light
+  // longer timelines are slower, but are good in very low light situtations
+  //tsl.setTiming(TSL2591_INTEGRATIONTIME_100MS);  // shortest integration time (bright light)
+  // tsl.setTiming(TSL2591_INTEGRATIONTIME_200MS);
+  tsl.setTiming(TSL2591_INTEGRATIONTIME_300MS);
+  // tsl.setTiming(TSL2591_INTEGRATIONTIME_400MS);
+  // tsl.setTiming(TSL2591_INTEGRATIONTIME_500MS);
+  // tsl.setTiming(TSL2591_INTEGRATIONTIME_600MS);  // longest integration time (dim light)
+}
+
+float getTSLLux() {
+  // Read 32 bits with top 16 bits IR, bottom 16 bits full spectrum
+  uint32_t lum = tsl.getFullLuminosity();
+  uint16_t ir, full;
+  ir = lum >> 16;
+  full = lum & 0xFFFF;
+  return tsl.calculateLux(full, ir);
 }
 
 void measureValues(void *params) {
