@@ -81,11 +81,14 @@ bool idle = false;
 
 void setup() {
   Serial.begin(9600);
-  dht.begin();
+  Serial.println("Setup start");
   mcp1.begin_I2C(MCP_1_ADDRESS);
   mcp2.begin_I2C(MCP_2_ADDRESS);
   prefs.begin("app", false);
+  Serial.println("DHT start");
+  dht.begin();
   initBLE();
+  Serial.println("DHT end");
 
   // IO Expanders need to be initialized before the reservoir
   reservoir = new Reservoir(RESERVOIR_SENSOR_PINS, RESERVOIR_VALVE_PIN, RESERVOIR_PUMP_PIN, RESERVOIR_LED_PIN, mcp2, prefs);
@@ -104,57 +107,80 @@ void setup() {
   ledRing.begin();
   buttonLeds.begin();
   // IO Expanders need to be initialized before the buttons
-  startButton = new Button(START_BUTTON_PIN, mcp1, buttonLeds, 0);
-  modeButton = new Button(MODE_BUTTON_PIN, mcp1, buttonLeds, 1);
+  startButton = new Button(START_BUTTON_PIN, mcp1, buttonLeds, 13);
+  modeButton = new Button(MODE_BUTTON_PIN, mcp1, buttonLeds, 0);
   for (byte i = 0; i < NUMBER_OF_BUTTONS; i++) {
-    gameButtons[i] = new Button(GAME_BUTTON_PINS[i], mcp1, buttonLeds, i + 2);
+    gameButtons[i] = new Button(GAME_BUTTON_PINS[i], mcp1, buttonLeds, i + 1);
   }
 
   createUDPSensors();
   // Share sensor measurements with UDP
-  xTaskCreate(udpTransmit, "udpTransmit", 3000, NULL, 0, NULL);
+  // xTaskCreate(udpTransmit, "udpTransmit", 3000, NULL, 0, NULL);
   // Measure moisture values and control the waterflow
-  xTaskCreate(measureValues, "measureValues", 2048, NULL, 2, NULL);
+  // xTaskCreate(measureValues, "measureValues", 2048, NULL, 2, NULL);
   // Drain the battery and control the lamps
-  xTaskCreate(batDrain, "batDrain", 2048, NULL, 1, NULL);
+  // xTaskCreate(batDrain, "batDrain", 2048, NULL, 1, NULL);
 
   // Connect to the internet
   char ssidBuffer[32];
   char passBuffer[32];
-  String ssid = prefs.getString("ssid");
-  String pass = prefs.getString("pass");
+  String ssid = prefs.getString("ssid", "The Promised LAN");
+  String pass = prefs.getString("pass", "password");
   ssid.toCharArray(ssidBuffer, ssid.length() + 1);
   pass.toCharArray(passBuffer, pass.length() + 1);
   WiFi.begin(ssidBuffer, passBuffer);
   // Only continue when an internet connection has been established
   while (WiFi.status() != WL_CONNECTED) {
     Serial.println("Connecting to the internet...");
-    delay(250);
+    delay(500);
   }
   // Init and get the time
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 
   idle = true;
+  Serial.println("Setup end");
 }
 
 void loop() {
   if (startButton->isPressed()) {
+    Serial.println("StartPressed");
     idle = false;
     // Delay of 3 seconds
     startGame();
     // Create a task to visualize the progress of the game
+    Serial.println("Create CountdownTask");
     xTaskCreate(gameCountdown, "gameCountdown", 2048, NULL, 2, NULL);
     // Start the game, passed parameter is hardcoded due to the input being binary, runGame itself is scalable
     runGame(multiplayer ? 2 : 1);
     idle = true;
   } else if (modeButton->isPressed()) {
+    Serial.println("ModePressed");
     // Toggle multiplayer mode when the modeButton is pressed
     multiplayer = !multiplayer;
     modeButton->toggle();
   } else {
-    // TODO: Idle animation
-    delay(30);
+    // Display an idle animation
+    static long lastBlink;
+    static long lastButtonSwitch;
+    static byte currButton;
+    if (millis() - lastBlink >= 1000) {
+      if (millis() - lastButtonSwitch >= 100) {
+        gameButtons[currButton]->toggle();
+        currButton++;
+        lastButtonSwitch = millis();
+        if (currButton >= NUMBER_OF_BUTTONS) {
+          lastBlink = millis();
+          currButton = 0;
+        }
+      }
+    }
   }
+  Serial.println("Loop");
+  Serial.println(dht.readHumidity());
+  Serial.println(dht.readTemperature());
+  Serial.println(ESP.getFreeHeap());
+  // Default delay
+  delay(2000);
 }
 
 void startGame() {
@@ -174,6 +200,8 @@ void startGame() {
 
 void runGame(byte playerCount) {
   int scores[playerCount];
+  Serial.print("Init score: ");
+  Serial.println(scores[0]);
   int activeButtons[playerCount];
   // Fill the activeButtons array with random numbers and turn them on
   for (byte i = 0; i < playerCount; i++) {
@@ -187,6 +215,7 @@ void runGame(byte playerCount) {
     for (byte i = 0; i < playerCount; i++) {
       // Turn the button off if it's pressed
       if (gameButtons[activeButtons[i]]->isPressed()) {
+        Serial.println(scores[i]);
         gameButtons[activeButtons[i]]->off();
         // Get a new random button, and turn it on
         activeButtons[i] = getRandomIntBetween(activeButtons[i], NUMBER_OF_BUTTONS / playerCount * i, NUMBER_OF_BUTTONS / playerCount * (i + 1));
@@ -199,31 +228,39 @@ void runGame(byte playerCount) {
   // Turn all active buttons off and return the scores
   buttonLeds.clear();
   buttonLeds.show();
+  Serial.println("PostGame");
   // Get the winner
   byte winner;
   for (byte i = 0; i < playerCount; i++) {
     if (scores[i] > winner) winner = i;
   }
+  Serial.println("PostWinnerSelect");
   // Flash the winner's buttons green and the loser's buttons red for 3 seconds
-  for (byte i = 0; i < 6; i++) {
-    // Set all buttons to red
-    buttonLeds.fill(buttonLeds.Color(255, 0, 0));
-    // Turn the winner's buttons green
-    for (byte i = NUMBER_OF_BUTTONS / playerCount * i; i < NUMBER_OF_BUTTONS / playerCount * (i + 1); i++) {
-      buttonLeds.setPixelColor(i, buttonLeds.Color(0, 255, 0));
-    }
-    delay(250);
-    buttonLeds.clear();
-    buttonLeds.show();
-    delay(250);
-  }
+  // for (byte i = 0; i < 6; i++) {
+  //   // Set all buttons to red
+  //   buttonLeds.fill(buttonLeds.Color(255, 0, 0));
+  //   Serial.println("1");
+  //   // Turn the winner's buttons green
+  //   for (byte j = (NUMBER_OF_BUTTONS - 1) / playerCount * winner; j < (NUMBER_OF_BUTTONS - 1) / playerCount * (winner + 1); j++) {
+  //     buttonLeds.setPixelColor(j, buttonLeds.Color(0, 255, 0));
+  //     Serial.println("InLoop");
+  //   }
+  //   Serial.println("2");
+  //   delay(250);
+  //   buttonLeds.clear();
+  //   Serial.println("3");
+  //   buttonLeds.show();
+  //   Serial.println("4");
+  //   delay(250);
+  // }
+  Serial.println("PostWinnerIndication");
   // Check whether either of the scores has surpassed the highscore
   for (byte i = 0; i < playerCount; i++) {
     if (scores[i] > prefs.getShort("highscore")) {
       prefs.putShort("highscore", scores[i]);
       // TODO: Display highscore on the led matrix
       // Flash all buttons yellow for 5 seconds
-      for (byte i = 0; i < 10; i++) {
+      for (byte j = 0; j < 10; j++) {
         buttonLeds.fill(buttonLeds.Color(255, 255, 0));
         buttonLeds.show();
         delay(250);
@@ -233,10 +270,14 @@ void runGame(byte playerCount) {
       }
     }
   }
+  Serial.println("PostHighscoreCheck");
+  Serial.println(playerCount);
   // Share the scores
   for (byte i = 0; i < playerCount; i++) {
-    shareScore(scores[i]);
+    Serial.println(scores[i]);
+    // shareScore(scores[i]);
   }
+  Serial.println("PostScoreShare");
 }
 
 void gameCountdown(void *params) {
@@ -395,19 +436,23 @@ void createUDPSensors() {
 void shareScore(int score) {
   // Exit the function if a WiFi connection is not established
   if (WiFi.status() != WL_CONNECTED) return;
+  Serial.println("ShareScore start");
   // Create the JSON to be sent
   StaticJsonDocument<64> game;
   game["score"] = score;
   game["highscore"] = score;
   char game_json[64];
   serializeJson(game, game_json);
+  Serial.println("Serialized json");
   // Set http destination and headers
   HTTPClient http;
   http.begin("http://20.16.84.167:1026/v2/entities/" UDP_G_NAME "/attrs");
   http.addHeader("Content-Type", "application/json");
+  Serial.println("HTTP begun");
   // Execute post request for the game data
   http.POST(game_json);
   http.end();
+  Serial.println("ShareScore end");
 }
 
 void udpTransmit(void *params) {
@@ -448,7 +493,7 @@ void udpTransmit(void *params) {
         http.end();
       }
     }
-    vTaskDelay(pdMS_TO_TICKS(prefs.getShort("tInterval") * 60000));
+    vTaskDelay(pdMS_TO_TICKS(prefs.getShort("tInterval", 5) * 60000));
   }
 }
 
@@ -475,7 +520,7 @@ void measureValues(void *params) {
         }
       }
     }
-    vTaskDelay(pdMS_TO_TICKS(prefs.getShort("mInterval") * 1000));
+    vTaskDelay(pdMS_TO_TICKS(prefs.getShort("mInterval", 5) * 1000));
   }
 }
 
@@ -491,6 +536,6 @@ void batDrain(void *params) {
         }
       }
     }
-    vTaskDelay(pdMS_TO_TICKS(prefs.getShort("batDrain") / 100 * 60000));
+    vTaskDelay(pdMS_TO_TICKS(prefs.getShort("batDrain", 20) / 100 * 60000));
   }
 }
