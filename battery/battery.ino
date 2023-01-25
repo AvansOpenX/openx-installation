@@ -13,7 +13,7 @@ void setup() {
 
 int kleur;
 int led;
-int ledjes_aan = 18;
+int ledjes_aan = 24;
 int red, green, blue = 0;
 
 void loop() {

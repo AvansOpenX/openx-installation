@@ -29,7 +29,6 @@ RGBmatrixPanel matrix(A, B, C, D, CLK, LAT, OE, false, 64);
 void setup() {
 
   Serial.begin(9600);
-  Serial2.begin(RXD1, 1);
 
 
   matrix.begin();
